@@ -60,7 +60,9 @@ func main() {
 	mcpServer := NewMCPServer()
 
 	router := gin.Default()
-	router.Any("/mcp", gin.WrapH(mcpServer.ServeHTTP()))
+	router.POST("/mcp", gin.WrapH(mcpServer.ServeHTTP()))
+	router.GET("/mcp", gin.WrapH(mcpServer.ServeHTTP()))
+	router.DELETE("/mcp", gin.WrapH(mcpServer.ServeHTTP()))
 
 	log.Printf("Dynamic HTTP server listening on %s", addr)
 	if err := http.ListenAndServe(addr, router); err != nil {
