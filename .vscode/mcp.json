@@ -1,0 +1,22 @@
+// Example .vscode/mcp.json
+{
+  // 💡 Inputs will be prompted on first server start,
+  //    then stored securely by VS Code.
+  "inputs": [
+    {
+      "type": "promptString",
+      "id": "perplexity-key",
+      "description": "Perplexity API Key",
+      "password": true
+    }
+  ],
+  "servers": {
+    "echo": {
+      "type": "http",
+      "url": "http://localhost:8080/mcp",
+      "headers": {
+        "Authorization": "1.2"
+      }
+    }
+  }
+}
