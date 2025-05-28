@@ -97,6 +97,17 @@ func handleMakeAuthenticatedRequestTool(
 	return mcp.NewToolResultText(fmt.Sprintf("%+v", resp)), nil
 }
 
+func handleShowAuthTokenTool(
+	ctx context.Context,
+	_ mcp.CallToolRequest,
+) (*mcp.CallToolResult, error) {
+	token, err := tokenFromContext(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("missing token: %v", err)
+	}
+	return mcp.NewToolResultText(fmt.Sprintf("%+v", token)), nil
+}
+
 type MCPServer struct {
 	server *server.MCPServer
 }
@@ -116,6 +127,9 @@ func NewMCPServer() *MCPServer {
 			mcp.Required(),
 		),
 	), handleMakeAuthenticatedRequestTool)
+	mcpServer.AddTool(mcp.NewTool("show_auth_token",
+		mcp.WithDescription("Shows the auth token from the context"),
+	), handleShowAuthTokenTool)
 
 	return &MCPServer{
 		server: mcpServer,
