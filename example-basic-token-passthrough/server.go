@@ -116,9 +116,9 @@ func NewMCPServer() *MCPServer {
 	mcpServer := server.NewMCPServer(
 		"example-server",
 		"1.0.0",
-		server.WithResourceCapabilities(true, true),
-		server.WithPromptCapabilities(true),
 		server.WithToolCapabilities(true),
+		server.WithLogging(),
+		server.WithRecovery(),
 	)
 	mcpServer.AddTool(mcp.NewTool("make_authenticated_request",
 		mcp.WithDescription("Makes an authenticated request"),

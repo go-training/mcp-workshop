@@ -30,8 +30,6 @@ func NewMCPServer() *MCPServer {
 	mcpServer := server.NewMCPServer(
 		"dynamic-path-example",
 		"1.0.0",
-		server.WithResourceCapabilities(true, true),
-		server.WithPromptCapabilities(true),
 		server.WithToolCapabilities(true),
 		server.WithLogging(),
 		server.WithRecovery(),
