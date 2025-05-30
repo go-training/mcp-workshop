@@ -132,14 +132,65 @@ func NewMCPServer() *MCPServer {
 		server.WithRecovery(),
 	)
 	mcpServer.AddTool(mcp.NewTool("make_authenticated_request",
-		mcp.WithDescription("Makes an authenticated request"),
+		mcp.WithDescription(`Make Authenticated Request Tool
+
+Description:
+  Sends an HTTP GET request to https://httpbin.org/anything with the provided message as a query parameter and the current authentication token (from context) in the Authorization header. Returns the parsed response from httpbin.org.
+
+Input Parameters:
+  - message (string, required): The message to include as a query parameter in the request.
+    Constraints: Must be a non-empty string. Recommended max length: 500 characters.
+
+Output:
+  - Returns a text result containing the parsed JSON response from httpbin.org, including echoed headers and arguments.
+
+Example Usage:
+  Request:
+    {
+      "message": "Test message"
+    }
+  Response:
+    {
+      "Args": {"message": "Test message"},
+      "Headers": {"Authorization": "<token>", ...}
+    }
+
+Error Conditions:
+  - If the "message" parameter is missing or not a string, an error is returned.
+  - If the authentication token is missing from context, an error is returned.
+  - If the HTTP request fails or the response cannot be parsed, an error is returned.
+
+Use Cases:
+  - Testing authenticated HTTP requests.
+  - Verifying token passthrough via context/environment.
+  - Debugging API integrations.`),
 		mcp.WithString("message",
-			mcp.Description("Message to echo"),
+			mcp.Description("The message to include as a query parameter in the request."),
 			mcp.Required(),
 		),
 	), handleMakeAuthenticatedRequestTool)
 	mcpServer.AddTool(mcp.NewTool("show_auth_token",
-		mcp.WithDescription("Shows the auth token from the context"),
+		mcp.WithDescription(`Show Auth Token Tool
+
+Description:
+  Returns the current authentication token from the context. Useful for debugging and verifying token passthrough from HTTP headers or environment variables.
+
+Input Parameters:
+  - None
+
+Output:
+  - Returns a text result containing the authentication token as a string.
+
+Example Usage:
+  Response:
+    "<token>"
+
+Error Conditions:
+  - If the authentication token is missing from context, an error is returned.
+
+Use Cases:
+  - Debugging authentication context.
+  - Verifying token propagation in different transports (HTTP, stdio).`),
 	), handleShowAuthTokenTool)
 
 	return &MCPServer{
