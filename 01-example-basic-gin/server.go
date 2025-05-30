@@ -40,7 +40,7 @@ type MCPServer struct {
 func NewMCPServer() *MCPServer {
 	// Create MCPServer, set name, version, and middleware (tool capabilities, logging, recovery)
 	mcpServer := server.NewMCPServer(
-		"dynamic-path-example",            // Server name
+		"mcp-with-gin-path-example",       // Server name
 		"1.0.0",                           // Version
 		server.WithToolCapabilities(true), // Enable tool capabilities
 		server.WithLogging(),              // Enable logging
