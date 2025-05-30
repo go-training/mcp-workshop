@@ -34,6 +34,7 @@ func NewMCPServer() *MCPServer {
 		server.WithPromptCapabilities(true),
 		server.WithToolCapabilities(true),
 		server.WithLogging(),
+		server.WithRecovery(),
 	)
 
 	mcpServer.AddTool(mcp.NewTool("echo_message",
