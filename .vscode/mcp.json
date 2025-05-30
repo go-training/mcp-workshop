@@ -1,7 +1,4 @@
-// Example .vscode/mcp.json
 {
-  // 💡 Inputs will be prompted on first server start,
-  //    then stored securely by VS Code.
   "inputs": [
     {
       "type": "promptString",
@@ -11,7 +8,7 @@
     }
   ],
   "servers": {
-    "echo mcp server": {
+    "default-http-server": {
       "type": "http",
       "url": "http://localhost:8080/mcp",
       "headers": {
