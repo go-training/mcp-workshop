@@ -48,6 +48,7 @@ func main() {
 	// Parse the command-line flag -addr, default is :8080
 	flag.StringVar(&addr, "addr", ":8080", "address to listen on")
 	flag.StringVar(&transport, "transport", "stdio", "transport type (stdio, sse or http)")
+	flag.StringVar(&transport, "t", "stdio", "transport type (stdio, sse or http)")
 	flag.Parse()
 
 	// Create an MCPServer instance
@@ -62,7 +63,7 @@ func main() {
 	case "sse":
 		// If transport is sse, start the MCP server using SSE transport
 		sseServer := server.NewSSEServer(mcpServer.server)
-		log.Printf("Gitea MCP SSE server listening on :%s", addr)
+		log.Printf("MCP SSE server listening on :%s", addr)
 		if err := sseServer.Start(addr); err != nil {
 			log.Fatalf("Server error: %v", err)
 		}

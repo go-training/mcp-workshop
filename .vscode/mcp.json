@@ -8,11 +8,23 @@
     }
   ],
   "servers": {
+    "default-stdio-server": {
+      "type": "stdio",
+      "command": "mcp-server",
+      "args": ["-t", "stdio"]
+    },
+    "default-sse-server": {
+      "type": "sse",
+      "url": "http://localhost:8080/sse",
+      "headers": {
+        "Authorization": "xxxxxx"
+      }
+    },
     "default-http-server": {
       "type": "http",
       "url": "http://localhost:8080/mcp",
       "headers": {
-        "Authorization": "1.2"
+        "Authorization": "xxxxxx"
       }
     }
   }
