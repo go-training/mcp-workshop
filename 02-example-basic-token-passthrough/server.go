@@ -216,6 +216,8 @@ func (s *MCPServer) ServeStdio() error {
 // starts the MCP server using the selected transport (stdio or http).
 func main() {
 	var transport string
+	var addr string
+	flag.StringVar(&addr, "addr", ":8080", "address to listen on")
 	flag.StringVar(&transport, "t", "stdio", "Transport type (stdio or http)")
 	flag.StringVar(
 		&transport,
@@ -234,8 +236,8 @@ func main() {
 		}
 	case "http":
 		httpServer := s.ServeHTTP()
-		log.Printf("HTTP server listening on :8080")
-		if err := httpServer.Start(":8080"); err != nil {
+		log.Printf("HTTP server listening on %s", addr)
+		if err := httpServer.Start(addr); err != nil {
 			log.Fatalf("Server error: %v", err)
 		}
 	default:
