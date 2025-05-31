@@ -26,6 +26,17 @@ func handleEchoMessageTool(ctx context.Context, req mcp.CallToolRequest) (*mcp.C
 	return mcp.NewToolResultText(fmt.Sprintf("Echo: %s", message)), nil
 }
 
+func handleAddNumbersTool(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	// Retrieve num1 and num2 arguments and check their types
+	num1Val, ok1 := req.GetArguments()["num1"].(float64)
+	num2Val, ok2 := req.GetArguments()["num2"].(float64)
+	if !ok1 || !ok2 {
+		return nil, fmt.Errorf("invalid num1 or num2 argument")
+	}
+	sum := num1Val + num2Val
+	return mcp.NewToolResultText(fmt.Sprintf("Sum: %.0f", sum)), nil
+}
+
 func registerTool(s *server.MCPServer) {
 	// Register the echo_message tool and specify the handler function
 	s.AddTool(mcp.NewTool("echo_message",
@@ -62,4 +73,45 @@ Use Cases:
 			mcp.Required(), // Argument is required
 		),
 	), handleEchoMessageTool)
+
+	// Register the add_numbers tool
+	s.AddTool(mcp.NewTool("add_numbers",
+		mcp.WithDescription(`Add Numbers Tool
+
+Description:
+  Calculates the sum of two numbers. Useful for basic arithmetic operations.
+
+Input Parameters:
+  - num1 (number, required): The first addend
+  - num2 (number, required): The second addend
+
+Output:
+  - Returns: "Sum: <num1 + num2>"
+
+Example Usage:
+  Request:
+    {
+      "num1": 42,
+      "num2": 58
+    }
+  Response:
+    "Sum: 100"
+
+Error Conditions:
+  - If num1 or num2 is missing or has the wrong type, an error is returned.
+
+Use Cases:
+  - Basic arithmetic operations
+  - Summing values in automated workflows
+  - Teaching or testing arithmetic functionality
+`),
+		mcp.WithNumber("num1",
+			mcp.Description("The first number to add"),
+			mcp.Required(),
+		),
+		mcp.WithNumber("num2",
+			mcp.Description("The second number to add"),
+			mcp.Required(),
+		),
+	), handleAddNumbersTool)
 }
