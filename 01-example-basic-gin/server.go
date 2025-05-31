@@ -43,25 +43,46 @@ func (s *MCPServer) ServeHTTP() *server.StreamableHTTPServer {
 // main function, the program entry point, responsible for parsing flags and starting the HTTP server.
 func main() {
 	var addr string
+	var transport string
 
 	// Parse the command-line flag -addr, default is :8080
 	flag.StringVar(&addr, "addr", ":8080", "address to listen on")
+	flag.StringVar(&transport, "transport", "stdio", "transport type (stdio, sse or http)")
 	flag.Parse()
 
 	// Create an MCPServer instance
 	mcpServer := NewMCPServer()
 
-	// Create a Gin router
-	router := gin.Default()
-	// Register POST, GET, DELETE methods for the /mcp path, all handled by MCPServer
-	router.POST("/mcp", gin.WrapH(mcpServer.ServeHTTP()))
-	router.GET("/mcp", gin.WrapH(mcpServer.ServeHTTP()))
-	router.DELETE("/mcp", gin.WrapH(mcpServer.ServeHTTP()))
+	switch transport {
+	case "stdio":
+		// If transport is stdio, start the MCP server using stdio transport
+		if err := server.ServeStdio(mcpServer.server); err != nil {
+			log.Fatalf("Server error: %v", err)
+		}
+	case "sse":
+		// If transport is sse, start the MCP server using SSE transport
+		sseServer := server.NewSSEServer(mcpServer.server)
+		log.Printf("Gitea MCP SSE server listening on :%s", addr)
+		if err := sseServer.Start(addr); err != nil {
+			log.Fatalf("Server error: %v", err)
+		}
+	case "http":
+		// If transport is http, continue to set up the HTTP server
+		// This will be handled below with Gin
+		// Create a Gin router
+		router := gin.Default()
+		// Register POST, GET, DELETE methods for the /mcp path, all handled by MCPServer
+		router.POST("/mcp", gin.WrapH(mcpServer.ServeHTTP()))
+		router.GET("/mcp", gin.WrapH(mcpServer.ServeHTTP()))
+		router.DELETE("/mcp", gin.WrapH(mcpServer.ServeHTTP()))
 
-	// Output server startup message
-	log.Printf("Dynamic HTTP server listening on %s", addr)
-	// Start the HTTP server, listening on the specified address
-	if err := http.ListenAndServe(addr, router); err != nil {
-		log.Fatalf("Server error: %v", err)
+		// Output server startup message
+		log.Printf("Dynamic HTTP server listening on %s", addr)
+		// Start the HTTP server, listening on the specified address
+		if err := http.ListenAndServe(addr, router); err != nil {
+			log.Fatalf("Server error: %v", err)
+		}
+	default:
+		log.Fatalf("Invalid transport type: %s. Must be 'stdio', 'sse' or 'http'", transport)
 	}
 }
