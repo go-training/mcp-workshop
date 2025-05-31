@@ -7,6 +7,12 @@ This workshop guides you through building both MCP ([Model Context Protocol][1])
 [1]:https://modelcontextprotocol.io/introduction
 [2]:https://go.dev
 
+## MCP Inspector
+
+The MCP inspector is a developer tool for testing and debugging MCP servers. Similar to Postman, it allows you to send requests to MCP servers and view the responses. It is a valuable tool for developers working with MCP.
+
+![inspector](./images/inspector.png)
+
 ## MCP Vulnerabilities
 
 ![vulnerabilities](./images/vulnerabilities.gif)
