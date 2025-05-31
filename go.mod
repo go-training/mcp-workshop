@@ -4,7 +4,7 @@ go 1.24.3
 
 require (
 	github.com/gin-gonic/gin v1.10.1
-	github.com/mark3labs/mcp-go v0.30.1
+	github.com/mark3labs/mcp-go v0.31.0
 )
 
 require (
