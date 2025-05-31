@@ -63,7 +63,7 @@ func main() {
 	case "sse":
 		// If transport is sse, start the MCP server using SSE transport
 		sseServer := server.NewSSEServer(mcpServer.server)
-		log.Printf("MCP SSE server listening on :%s", addr)
+		log.Printf("MCP SSE server listening on %s", addr)
 		if err := sseServer.Start(addr); err != nil {
 			log.Fatalf("Server error: %v", err)
 		}
