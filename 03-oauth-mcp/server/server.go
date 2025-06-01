@@ -12,6 +12,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-training/mcp-workshop/pkg/operation"
@@ -312,12 +313,20 @@ func main() {
 		router.GET("/mcp", authMiddleware, gin.WrapH(mcpServer.ServeHTTP()))
 		router.DELETE("/mcp", authMiddleware, gin.WrapH(mcpServer.ServeHTTP()))
 
-		// Use CORS middleware for OPTIONS and actual requests
+		router.GET("/.well-known/oauth-protected-resource", corsMiddleware(), func(c *gin.Context) {
+			metadata := &transport.OAuthProtectedResource{
+				AuthorizationServers: []string{"http://localhost:8080"},
+				Resource:             "Example OAuth Protected Resource",
+				ResourceName:         "Example OAuth Protected Resource",
+			}
+			c.JSON(http.StatusOK, metadata)
+		})
+
 		router.GET("/.well-known/oauth-authorization-server", corsMiddleware(), func(c *gin.Context) {
 			metadata := transport.AuthServerMetadata{
 				Issuer:                            "http://localhost:8080",
-				AuthorizationEndpoint:             "http://localhost:8080/authorize",
-				TokenEndpoint:                     "http://localhost:8080/token",
+				AuthorizationEndpoint:             "https://github.com/login/oauth/authorize",
+				TokenEndpoint:                     "https://github.com/login/oauth/access_token",
 				RegistrationEndpoint:              "http://localhost:8080/register",
 				ScopesSupported:                   []string{"openid", "profile", "email"},
 				ResponseTypesSupported:            []string{"code", "token"},
@@ -327,6 +336,48 @@ func main() {
 			c.JSON(http.StatusOK, metadata)
 		})
 
+		router.GET("/authorize", corsMiddleware("Authorization", "Content-Type"), func(c *gin.Context) {
+			clientID := c.Query("client_id")
+			if clientID == "" {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "client_id is required"})
+				return
+			}
+			state := c.Query("state")
+			if state == "" {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "state is required"})
+				return
+			}
+			redirectURL := fmt.Sprintf("https://github.com/login/oauth/authorize?client_id=%s&state=%s", clientID, state)
+			c.Redirect(http.StatusFound, redirectURL)
+		})
+
+		router.POST("/token", corsMiddleware("Authorization", "Content-Type"), func(c *gin.Context) {
+			grantType := c.PostForm("grant_type")
+			code := c.PostForm("code")
+			clientID := c.PostForm("client_id")
+			redirectURI := c.PostForm("redirect_uri")
+			slog.Info("Token request received", "grant_type", grantType, "client_id", clientID, "redirect_uri", redirectURI)
+			if grantType != "authorization_code" {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "unsupported grant_type"})
+				return
+			}
+			if code == "" || clientID == "" || redirectURI == "" {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "code, client_id, and redirect_uri are required"})
+				return
+			}
+			// Simulate token generation
+			token := "test-access-token"
+			response := map[string]interface{}{
+				"access_token":  token,
+				"token_type":    "bearer",
+				"refresh_token": "test-refresh-token",
+				"scope":         "mcp.read mcp.write",
+				"expires_in":    3600,
+				"expires_at":    time.Now().Add(3600 * time.Second).Format(time.RFC3339),
+			}
+			c.JSON(http.StatusOK, response)
+		})
+
 		// Add /register endpoint: echoes back the JSON body
 		router.POST("/register", corsMiddleware("Authorization", "Content-Type"), func(c *gin.Context) {
 			var body map[string]interface{}
@@ -334,8 +385,8 @@ func main() {
 				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 				return
 			}
-			body["client_id"] = "test-client-id"         // Add a dummy client_id for demonstration
-			body["client_secret"] = "test-client-secret" // Add a dummy client_secret for demonstration
+			body["client_id"] = "test-client-id"
+			body["client_secret"] = "test-client-secret"
 			c.JSON(http.StatusOK, body)
 		})
 
