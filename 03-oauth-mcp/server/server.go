@@ -280,25 +280,40 @@ func main() {
 			c.Next()
 		}
 
+		// CORS middleware for handling preflight and actual requests
+		corsMiddleware := func(allowedHeaders ...string) gin.HandlerFunc {
+			headers := "Mcp-Protocol-Version, Authorization, Content-Type"
+			if len(allowedHeaders) > 0 {
+				headers = ""
+				for i, h := range allowedHeaders {
+					if i > 0 {
+						headers += ", "
+					}
+					headers += h
+				}
+			}
+			return func(c *gin.Context) {
+				c.Header("Access-Control-Allow-Origin", "*")
+				c.Header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+				c.Header("Access-Control-Allow-Headers", headers)
+				c.Header("Access-Control-Max-Age", "86400")
+				if c.Request.Method == "OPTIONS" {
+					c.AbortWithStatus(http.StatusNoContent)
+					return
+				}
+				c.Next()
+			}
+		}
+
+		router.Use(corsMiddleware())
+
 		// Register POST, GET, DELETE methods for the /mcp path, all handled by MCPServer
 		router.POST("/mcp", authMiddleware, gin.WrapH(mcpServer.ServeHTTP()))
 		router.GET("/mcp", authMiddleware, gin.WrapH(mcpServer.ServeHTTP()))
 		router.DELETE("/mcp", authMiddleware, gin.WrapH(mcpServer.ServeHTTP()))
 
-		router.OPTIONS("/.well-known/oauth-authorization-server", func(c *gin.Context) {
-			// Handle CORS preflight request
-			c.Header("Access-Control-Allow-Origin", "*")
-			c.Header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-			c.Header("Access-Control-Allow-Headers", "Mcp-Protocol-Version, Authorization, Content-Type")
-			c.Header("Access-Control-Max-Age", "86400") // Cache preflight response for 24 hours
-			c.Status(http.StatusNoContent)              // Respond with 204 No Content
-		})
-		router.GET("/.well-known/oauth-authorization-server", func(c *gin.Context) {
-			// Set CORS headers for actual GET request
-			c.Header("Access-Control-Allow-Origin", "*")
-			c.Header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-			c.Header("Access-Control-Allow-Headers", "Mcp-Protocol-Version, Authorization, Content-Type")
-			c.Header("Access-Control-Max-Age", "86400")
+		// Use CORS middleware for OPTIONS and actual requests
+		router.GET("/.well-known/oauth-authorization-server", corsMiddleware(), func(c *gin.Context) {
 			metadata := transport.AuthServerMetadata{
 				Issuer:                            "http://localhost:8080",
 				AuthorizationEndpoint:             "http://localhost:8080/authorize",
@@ -312,22 +327,8 @@ func main() {
 			c.JSON(http.StatusOK, metadata)
 		})
 
-		router.OPTIONS("/register", func(c *gin.Context) {
-			// Handle CORS preflight request
-			c.Header("Access-Control-Allow-Origin", "*")
-			c.Header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-			c.Header("Access-Control-Allow-Headers", "Authorization, Content-Type")
-			c.Header("Access-Control-Max-Age", "86400") // Cache preflight response for 24 hours
-			c.Status(http.StatusNoContent)              // Respond with 204 No Content
-		})
-
 		// Add /register endpoint: echoes back the JSON body
-		router.POST("/register", func(c *gin.Context) {
-			// Set CORS headers for actual GET request
-			c.Header("Access-Control-Allow-Origin", "*")
-			c.Header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-			c.Header("Access-Control-Allow-Headers", "Authorization, Content-Type")
-			c.Header("Access-Control-Max-Age", "86400")
+		router.POST("/register", corsMiddleware("Authorization", "Content-Type"), func(c *gin.Context) {
 			var body map[string]interface{}
 			if err := c.ShouldBindJSON(&body); err != nil {
 				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
