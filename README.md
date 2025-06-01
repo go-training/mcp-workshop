@@ -2,6 +2,14 @@
 
 This workshop guides you through building both MCP ([Model Context Protocol][1]) servers and clients using the [Go programming][2] language. You will learn how to leverage MCP to enhance your workflow and improve your development environment.
 
+## Table of Contents
+
+- [mcp-workshop](#mcp-workshop)
+  - [Table of Contents](#table-of-contents)
+  - [MCP Inspector](#mcp-inspector)
+  - [OAuth in MCP](#oauth-in-mcp)
+  - [MCP Vulnerabilities](#mcp-vulnerabilities)
+
 ![cover](./images/cover.png)
 
 [1]:https://modelcontextprotocol.io/introduction
