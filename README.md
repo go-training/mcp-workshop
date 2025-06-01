@@ -13,6 +13,14 @@ The MCP inspector is a developer tool for testing and debugging MCP servers. Sim
 
 ![inspector](./images/inspector.png)
 
+## OAuth in MCP
+
+![oauth](./images/oauth-flow-01.png)
+
+Sequence diagram showing communication with each role separately.
+
+![oauth-sequence](./images/oauth-flow-02.png)
+
 ## MCP Vulnerabilities
 
 ![vulnerabilities](./images/vulnerabilities.gif)
