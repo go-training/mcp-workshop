@@ -15,6 +15,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-training/mcp-workshop/pkg/operation"
+	"github.com/mark3labs/mcp-go/client/transport"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 )
@@ -241,12 +242,12 @@ func initLogger() {
 
 func main() {
 	initLogger()
-	var transport string
+	var t string
 	var addr string
 	flag.StringVar(&addr, "addr", ":8080", "address to listen on")
-	flag.StringVar(&transport, "t", "sse", "Transport type (sse or http)")
+	flag.StringVar(&t, "t", "sse", "Transport type (sse or http)")
 	flag.StringVar(
-		&transport,
+		&t,
 		"transport",
 		"sse",
 		"Transport type (sse or http)",
@@ -255,7 +256,7 @@ func main() {
 
 	mcpServer := NewMCPServer()
 
-	switch transport {
+	switch t {
 	case "sse":
 		// If transport is sse, start the MCP server using SSE transport
 		sseServer := server.NewSSEServer(mcpServer.server)
@@ -278,12 +279,38 @@ func main() {
 			}
 			c.Next()
 		}
-		router.Use(authMiddleware)
 
 		// Register POST, GET, DELETE methods for the /mcp path, all handled by MCPServer
-		router.POST("/mcp", gin.WrapH(mcpServer.ServeHTTP()))
-		router.GET("/mcp", gin.WrapH(mcpServer.ServeHTTP()))
-		router.DELETE("/mcp", gin.WrapH(mcpServer.ServeHTTP()))
+		router.POST("/mcp", authMiddleware, gin.WrapH(mcpServer.ServeHTTP()))
+		router.GET("/mcp", authMiddleware, gin.WrapH(mcpServer.ServeHTTP()))
+		router.DELETE("/mcp", authMiddleware, gin.WrapH(mcpServer.ServeHTTP()))
+
+		router.OPTIONS("/.well-known/oauth-authorization-server", func(c *gin.Context) {
+			// Handle CORS preflight request
+			c.Header("Access-Control-Allow-Origin", "*")
+			c.Header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+			c.Header("Access-Control-Allow-Headers", "Authorization, Content-Type")
+			c.Header("Access-Control-Max-Age", "86400") // Cache preflight response for 24 hours
+			c.Status(http.StatusNoContent)              // Respond with 204 No Content
+		})
+		router.GET("/.well-known/oauth-authorization-server", func(c *gin.Context) {
+			// Set CORS headers for actual GET request
+			c.Header("Access-Control-Allow-Origin", "*")
+			c.Header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+			c.Header("Access-Control-Allow-Headers", "Authorization, Content-Type")
+			c.Header("Access-Control-Max-Age", "86400")
+			metadata := transport.AuthServerMetadata{
+				Issuer:                            "http://localhost:8080",
+				AuthorizationEndpoint:             "https://github.com/login/oauth/authorize",
+				TokenEndpoint:                     "https://github.com/login/oauth/access_token",
+				RegistrationEndpoint:              "http://localhost:8080/oauth/register",
+				ScopesSupported:                   []string{"openid", "profile", "email"},
+				ResponseTypesSupported:            []string{"code", "token"},
+				GrantTypesSupported:               []string{"authorization_code", "client_credentials", "refresh_token"},
+				TokenEndpointAuthMethodsSupported: []string{"client_secret_basic", "client_secret_post"},
+			}
+			c.JSON(http.StatusOK, metadata)
+		})
 
 		// Output server startup message
 		slog.Info("MCP HTTP server listening", "addr", addr)
@@ -293,7 +320,7 @@ func main() {
 			os.Exit(1)
 		}
 	default:
-		slog.Error("Invalid transport type", "transport", transport)
+		slog.Error("Invalid transport type", "transport", t)
 		os.Exit(1)
 	}
 }
