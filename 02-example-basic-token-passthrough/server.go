@@ -70,6 +70,10 @@ func makeRequest(ctx context.Context, message, token string) (*response, error) 
 		return nil, err
 	}
 	defer resp.Body.Close()
+	// Check HTTP status code, return error if not 2xx
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return nil, fmt.Errorf("http request failed: status %d %s", resp.StatusCode, resp.Status)
+	}
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
@@ -114,7 +118,14 @@ func handleShowAuthTokenTool(
 	if err != nil {
 		return nil, fmt.Errorf("missing token: %v", err)
 	}
-	return mcp.NewToolResultText(fmt.Sprintf("%+v", token)), nil
+	// Mask the token: show only the first 4 and last 4 characters, hide the middle with asterisks for security
+	masked := token
+	if len(token) > 8 {
+		masked = token[:4] + "****" + token[len(token)-4:]
+	} else if len(token) > 0 {
+		masked = "****"
+	}
+	return mcp.NewToolResultText(masked), nil
 }
 
 // MCPServer wraps the underlying MCP server instance.
