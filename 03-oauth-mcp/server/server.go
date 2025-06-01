@@ -289,7 +289,7 @@ func main() {
 			// Handle CORS preflight request
 			c.Header("Access-Control-Allow-Origin", "*")
 			c.Header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-			c.Header("Access-Control-Allow-Headers", "Authorization, Content-Type")
+			c.Header("Access-Control-Allow-Headers", "Mcp-Protocol-Version, Authorization, Content-Type")
 			c.Header("Access-Control-Max-Age", "86400") // Cache preflight response for 24 hours
 			c.Status(http.StatusNoContent)              // Respond with 204 No Content
 		})
@@ -297,19 +297,45 @@ func main() {
 			// Set CORS headers for actual GET request
 			c.Header("Access-Control-Allow-Origin", "*")
 			c.Header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-			c.Header("Access-Control-Allow-Headers", "Authorization, Content-Type")
+			c.Header("Access-Control-Allow-Headers", "Mcp-Protocol-Version, Authorization, Content-Type")
 			c.Header("Access-Control-Max-Age", "86400")
 			metadata := transport.AuthServerMetadata{
 				Issuer:                            "http://localhost:8080",
-				AuthorizationEndpoint:             "https://github.com/login/oauth/authorize",
-				TokenEndpoint:                     "https://github.com/login/oauth/access_token",
-				RegistrationEndpoint:              "http://localhost:8080/oauth/register",
+				AuthorizationEndpoint:             "http://localhost:8080/authorize",
+				TokenEndpoint:                     "http://localhost:8080/token",
+				RegistrationEndpoint:              "http://localhost:8080/register",
 				ScopesSupported:                   []string{"openid", "profile", "email"},
 				ResponseTypesSupported:            []string{"code", "token"},
 				GrantTypesSupported:               []string{"authorization_code", "client_credentials", "refresh_token"},
 				TokenEndpointAuthMethodsSupported: []string{"client_secret_basic", "client_secret_post"},
 			}
 			c.JSON(http.StatusOK, metadata)
+		})
+
+		router.OPTIONS("/register", func(c *gin.Context) {
+			// Handle CORS preflight request
+			c.Header("Access-Control-Allow-Origin", "*")
+			c.Header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+			c.Header("Access-Control-Allow-Headers", "Authorization, Content-Type")
+			c.Header("Access-Control-Max-Age", "86400") // Cache preflight response for 24 hours
+			c.Status(http.StatusNoContent)              // Respond with 204 No Content
+		})
+
+		// Add /register endpoint: echoes back the JSON body
+		router.POST("/register", func(c *gin.Context) {
+			// Set CORS headers for actual GET request
+			c.Header("Access-Control-Allow-Origin", "*")
+			c.Header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+			c.Header("Access-Control-Allow-Headers", "Authorization, Content-Type")
+			c.Header("Access-Control-Max-Age", "86400")
+			var body map[string]interface{}
+			if err := c.ShouldBindJSON(&body); err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+				return
+			}
+			body["client_id"] = "test-client-id"         // Add a dummy client_id for demonstration
+			body["client_secret"] = "test-client-secret" // Add a dummy client_secret for demonstration
+			c.JSON(http.StatusOK, body)
 		})
 
 		// Output server startup message
