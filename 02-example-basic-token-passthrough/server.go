@@ -227,15 +227,22 @@ func main() {
 	)
 	flag.Parse()
 
-	s := NewMCPServer()
+	mcpServer := NewMCPServer()
 
 	switch transport {
 	case "stdio":
-		if err := s.ServeStdio(); err != nil {
+		if err := mcpServer.ServeStdio(); err != nil {
+			log.Fatalf("Server error: %v", err)
+		}
+	case "sse":
+		// If transport is sse, start the MCP server using SSE transport
+		sseServer := server.NewSSEServer(mcpServer.server)
+		log.Printf("MCP SSE server listening on %s", addr)
+		if err := sseServer.Start(addr); err != nil {
 			log.Fatalf("Server error: %v", err)
 		}
 	case "http":
-		httpServer := s.ServeHTTP()
+		httpServer := mcpServer.ServeHTTP()
 		log.Printf("HTTP server listening on %s", addr)
 		if err := httpServer.Start(addr); err != nil {
 			log.Fatalf("Server error: %v", err)
