@@ -4,11 +4,12 @@ package main
 
 import (
 	"context"
+	"crypto/rand"
 	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 
@@ -19,6 +20,31 @@ import (
 
 // authKey is a custom context key type for storing the auth token in context.
 type authKey struct{}
+
+// requestIDKey is a custom context key type for storing the request ID in context.
+type requestIDKey struct{}
+
+// withRequestID returns a new context with a generated request ID set.
+func withRequestID(ctx context.Context) context.Context {
+	b := make([]byte, 8)
+	_, err := rand.Read(b)
+	if err != nil {
+		for i := range b {
+			b[i] = byte(i * 31)
+		}
+	}
+	reqID := fmt.Sprintf("%x", b)
+	return context.WithValue(ctx, requestIDKey{}, reqID)
+}
+
+// loggerFromCtx returns a slog.Logger with request_id field if present in context.
+func loggerFromCtx(ctx context.Context) *slog.Logger {
+	reqID, _ := ctx.Value(requestIDKey{}).(string)
+	if reqID != "" {
+		return slog.Default().With("request_id", reqID)
+	}
+	return slog.Default()
+}
 
 // withAuthKey returns a new context with the provided auth token set.
 func withAuthKey(ctx context.Context, auth string) context.Context {
@@ -92,19 +118,25 @@ func handleMakeAuthenticatedRequestTool(
 	ctx context.Context,
 	request mcp.CallToolRequest,
 ) (*mcp.CallToolResult, error) {
+	logger := loggerFromCtx(ctx)
+	logger.Info("Handling make_authenticated_request tool")
 	message, ok := request.GetArguments()["message"].(string)
 	if !ok {
+		logger.Error("Missing message argument")
 		return nil, fmt.Errorf("missing message")
 	}
 	token, err := tokenFromContext(ctx)
 	if err != nil {
+		logger.Error("Missing token", "error", err)
 		return nil, fmt.Errorf("missing token: %v", err)
 	}
 	// Make the HTTP request with the token, regardless of its source.
 	resp, err := makeRequest(ctx, message, token)
 	if err != nil {
+		logger.Error("HTTP request failed", "error", err)
 		return nil, err
 	}
+	logger.Info("HTTP request succeeded")
 	return mcp.NewToolResultText(fmt.Sprintf("%+v", resp)), nil
 }
 
@@ -174,19 +206,40 @@ func NewMCPServer() *MCPServer {
 // from HTTP requests into the context.
 func (s *MCPServer) ServeHTTP() *server.StreamableHTTPServer {
 	return server.NewStreamableHTTPServer(s.server,
-		server.WithHTTPContextFunc(authFromRequest),
+		server.WithHTTPContextFunc(func(ctx context.Context, r *http.Request) context.Context {
+			ctx = authFromRequest(ctx, r)
+			return withRequestID(ctx)
+		}),
 	)
 }
 
 // ServeStdio starts the MCP server using stdio transport, injecting the
 // auth token from the environment into the context.
 func (s *MCPServer) ServeStdio() error {
-	return server.ServeStdio(s.server, server.WithStdioContextFunc(authFromEnv))
+	return server.ServeStdio(s.server, server.WithStdioContextFunc(func(ctx context.Context) context.Context {
+		ctx = authFromEnv(ctx)
+		return withRequestID(ctx)
+	}))
 }
 
 // main is the entry point of the program. It parses command-line flags and
 // starts the MCP server using the selected transport (stdio or http).
+func initLogger() {
+	// Use text format and DEBUG level for development, JSON and INFO for production
+	var handler slog.Handler
+	handler = slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
+		Level: slog.LevelDebug,
+	})
+	if os.Getenv("ENV") == "production" {
+		handler = slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+			Level: slog.LevelInfo,
+		})
+	}
+	slog.SetDefault(slog.New(handler))
+}
+
 func main() {
+	initLogger()
 	var transport string
 	var addr string
 	flag.StringVar(&addr, "addr", ":8080", "address to listen on")
@@ -204,25 +257,26 @@ func main() {
 	switch transport {
 	case "stdio":
 		if err := mcpServer.ServeStdio(); err != nil {
-			log.Fatalf("Server error: %v", err)
+			slog.Error("Server error", "error", err)
+			os.Exit(1)
 		}
 	case "sse":
 		// If transport is sse, start the MCP server using SSE transport
 		sseServer := server.NewSSEServer(mcpServer.server)
-		log.Printf("MCP SSE server listening on %s", addr)
+		slog.Info("MCP SSE server listening", "addr", addr)
 		if err := sseServer.Start(addr); err != nil {
-			log.Fatalf("Server error: %v", err)
+			slog.Error("Server error", "error", err)
+			os.Exit(1)
 		}
 	case "http":
 		httpServer := mcpServer.ServeHTTP()
-		log.Printf("HTTP server listening on %s", addr)
+		slog.Info("HTTP server listening", "addr", addr)
 		if err := httpServer.Start(addr); err != nil {
-			log.Fatalf("Server error: %v", err)
+			slog.Error("Server error", "error", err)
+			os.Exit(1)
 		}
 	default:
-		log.Fatalf(
-			"Invalid transport type: %s. Must be 'stdio' or 'http'",
-			transport,
-		)
+		slog.Error("Invalid transport type", "transport", transport)
+		os.Exit(1)
 	}
 }
