@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/go-training/mcp-workshop/pkg/operation"
 	"github.com/mark3labs/mcp-go/server"
 )
 
@@ -27,7 +28,7 @@ func NewMCPServer() *MCPServer {
 	)
 
 	// Register Tool
-	registerTool(mcpServer)
+	operation.RegisterTool(mcpServer)
 
 	return &MCPServer{
 		server: mcpServer,
