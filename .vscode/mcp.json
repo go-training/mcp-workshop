@@ -24,7 +24,7 @@
       "type": "http",
       "url": "http://localhost:8080/mcp",
       "headers": {
-        "Authorization": "xxxxxx"
+        "Authorization": "Bearer 1234567890"
       }
     }
   }

@@ -153,7 +153,7 @@ func handleShowAuthTokenTool(
 	// Mask the token: show only the first 4 and last 4 characters, hide the middle with asterisks for security
 	masked := token
 	if len(token) > 8 {
-		masked = token[:4] + "****" + token[len(token)-4:]
+		masked = token[:6] + "****" + token[len(token)-2:]
 	} else if len(token) > 0 {
 		masked = "****"
 	}
