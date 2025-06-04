@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/go-training/mcp-workshop/pkg/logger"
 	"github.com/go-training/mcp-workshop/pkg/operation"
 	"github.com/mark3labs/mcp-go/server"
 )
@@ -43,6 +44,7 @@ func (s *MCPServer) ServeHTTP() *server.StreamableHTTPServer {
 
 // main function, the program entry point, responsible for parsing flags and starting the HTTP server.
 func main() {
+	logger.New()
 	var addr string
 	var transport string
 

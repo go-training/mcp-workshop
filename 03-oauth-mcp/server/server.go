@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/go-training/mcp-workshop/pkg/logger"
 	"github.com/go-training/mcp-workshop/pkg/operation"
 	"github.com/mark3labs/mcp-go/client/transport"
 	"github.com/mark3labs/mcp-go/mcp"
@@ -225,24 +226,8 @@ func (s *MCPServer) ServeStdio() error {
 	}))
 }
 
-// main is the entry point of the program. It parses command-line flags and
-// starts the MCP server using the selected transport (stdio or http).
-func initLogger() {
-	// Use text format and DEBUG level for development, JSON and INFO for production
-	var handler slog.Handler
-	handler = slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
-		Level: slog.LevelDebug,
-	})
-	if os.Getenv("ENV") == "production" {
-		handler = slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
-			Level: slog.LevelInfo,
-		})
-	}
-	slog.SetDefault(slog.New(handler))
-}
-
 func main() {
-	initLogger()
+	logger.New()
 	var t string
 	var addr string
 	flag.StringVar(&addr, "addr", ":8080", "address to listen on")
