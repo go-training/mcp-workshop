@@ -2,8 +2,9 @@ package main
 
 import (
 	"flag"
-	"log"
+	"log/slog"
 	"net/http"
+	"os"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-training/mcp-workshop/pkg/logger"
@@ -61,14 +62,16 @@ func main() {
 	case "stdio":
 		// If transport is stdio, start the MCP server using stdio transport
 		if err := server.ServeStdio(mcpServer.server); err != nil {
-			log.Fatalf("Server error: %v", err)
+			slog.Error("Server error", "err", err)
+			os.Exit(1)
 		}
 	case "sse":
 		// If transport is sse, start the MCP server using SSE transport
 		sseServer := server.NewSSEServer(mcpServer.server)
-		log.Printf("MCP SSE server listening on %s", addr)
+		slog.Info("MCP SSE server listening", "addr", addr)
 		if err := sseServer.Start(addr); err != nil {
-			log.Fatalf("Server error: %v", err)
+			slog.Error("Server error", "err", err)
+			os.Exit(1)
 		}
 	case "http":
 		// If transport is http, continue to set up the HTTP server
@@ -81,12 +84,14 @@ func main() {
 		router.DELETE("/mcp", gin.WrapH(mcpServer.ServeHTTP()))
 
 		// Output server startup message
-		log.Printf("Dynamic HTTP server listening on %s", addr)
+		slog.Info("Dynamic HTTP server listening", "addr", addr)
 		// Start the HTTP server, listening on the specified address
 		if err := http.ListenAndServe(addr, router); err != nil {
-			log.Fatalf("Server error: %v", err)
+			slog.Error("Server error", "err", err)
+			os.Exit(1)
 		}
 	default:
-		log.Fatalf("Invalid transport type: %s. Must be 'stdio', 'sse' or 'http'", transport)
+		slog.Error("Invalid transport type", "transport", transport)
+		os.Exit(1)
 	}
 }

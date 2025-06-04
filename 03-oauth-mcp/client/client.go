@@ -4,8 +4,9 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
+	"os"
 	"os/exec"
 	"runtime"
 
@@ -44,12 +45,14 @@ func main() {
 	// Create the client with OAuth support
 	c, err := client.NewOAuthStreamableHttpClient(serverURL, oauthConfig)
 	if err != nil {
-		log.Fatalf("Failed to create client: %v", err)
+		slog.Error("Failed to create client", "err", err)
+		os.Exit(1)
 	}
 
 	// Start the client
 	if err := c.Start(context.Background()); err != nil {
-		log.Fatalf("Failed to start client: %v", err)
+		slog.Error("Failed to start client", "err", err)
+		os.Exit(1)
 	}
 	defer c.Close()
 
@@ -83,20 +86,23 @@ func main() {
 		// Generate PKCE code verifier and challenge
 		codeVerifier, err := client.GenerateCodeVerifier()
 		if err != nil {
-			log.Fatalf("Failed to generate code verifier: %v", err)
+			slog.Error("Failed to generate code verifier", "err", err)
+			os.Exit(1)
 		}
 		codeChallenge := client.GenerateCodeChallenge(codeVerifier)
 
 		// Generate state parameter
 		state, err := client.GenerateState()
 		if err != nil {
-			log.Fatalf("Failed to generate state: %v", err)
+			slog.Error("Failed to generate state", "err", err)
+			os.Exit(1)
 		}
 
 		// Get the authorization URL
 		authURL, err := oauthHandler.GetAuthorizationURL(context.Background(), state, codeChallenge)
 		if err != nil {
-			log.Fatalf("Failed to get authorization URL: %v", err)
+			slog.Error("Failed to get authorization URL", "err", err)
+			os.Exit(1)
 		}
 
 		// Open the browser to the authorization URL
@@ -109,19 +115,22 @@ func main() {
 
 		// Verify state parameter
 		if params["state"] != state {
-			log.Fatalf("State mismatch: expected %s, got %s", state, params["state"])
+			slog.Error("State mismatch", "expected", state, "got", params["state"])
+			os.Exit(1)
 		}
 
 		// Exchange the authorization code for a token
 		code := params["code"]
 		if code == "" {
-			log.Fatalf("No authorization code received")
+			slog.Error("No authorization code received")
+			os.Exit(1)
 		}
 
 		fmt.Println("Exchanging authorization code for token...")
 		err = oauthHandler.ProcessAuthorizationResponse(context.Background(), code, state, codeVerifier)
 		if err != nil {
-			log.Fatalf("Failed to process authorization response: %v", err)
+			slog.Error("Failed to process authorization response", "err", err)
+			os.Exit(1)
 		}
 
 		fmt.Println("Authorization successful!")
@@ -141,10 +150,12 @@ func main() {
 			},
 		})
 		if err != nil {
-			log.Fatalf("Failed to initialize client after authorization: %v", err)
+			slog.Error("Failed to initialize client after authorization", "err", err)
+			os.Exit(1)
 		}
 	} else if err != nil {
-		log.Fatalf("Failed to initialize client: %v", err)
+		slog.Error("Failed to initialize client", "err", err)
+		os.Exit(1)
 	}
 
 	fmt.Printf("Client initialized successfully! Server: %s %s\n",
@@ -155,7 +166,8 @@ func main() {
 	// For example, list tools
 	tools, err := c.ListTools(context.Background(), mcp.ListToolsRequest{})
 	if err != nil {
-		log.Fatalf("Failed to list tools: %v", err)
+		slog.Error("Failed to list tools", "err", err)
+		os.Exit(1)
 	}
 
 	fmt.Println("Available tools:")
@@ -194,13 +206,13 @@ func startCallbackServer(callbackChan chan<- map[string]string) *http.Server {
 			</html>
 		`))
 		if err != nil {
-			log.Printf("Error writing response: %v", err)
+			slog.Error("Error writing response", "err", err)
 		}
 	})
 
 	go func() {
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Printf("HTTP server error: %v", err)
+			slog.Error("HTTP server error", "err", err)
 		}
 	}()
 
@@ -223,7 +235,7 @@ func openBrowser(url string) {
 	}
 
 	if err != nil {
-		log.Printf("Failed to open browser: %v", err)
+		slog.Error("Failed to open browser", "err", err)
 		fmt.Printf("Please open the following URL in your browser: %s\n", url)
 	}
 }
