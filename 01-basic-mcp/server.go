@@ -49,12 +49,16 @@ func main() {
 	logger.New()
 	var addr string
 	var transport string
+	var transportAlias string
 
 	// Parse the command-line flag -addr, default is :8080
 	flag.StringVar(&addr, "addr", ":8080", "address to listen on")
 	flag.StringVar(&transport, "transport", "stdio", "transport type (stdio, sse or http)")
-	flag.StringVar(&transport, "t", "stdio", "transport type (stdio, sse or http)")
+	flag.StringVar(&transportAlias, "t", "", "alias for -transport")
 	flag.Parse()
+	if transportAlias != "" {
+		transport = transportAlias
+	}
 
 	// Create an MCPServer instance
 	mcpServer := NewMCPServer()
