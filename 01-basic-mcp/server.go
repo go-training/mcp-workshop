@@ -84,9 +84,9 @@ func main() {
 		// Create a Gin router
 		router := gin.Default()
 		// Register POST, GET, DELETE methods for the /mcp path, all handled by MCPServer
-		router.POST("/mcp", gin.WrapH(mcpServer.ServeHTTP()))
-		router.GET("/mcp", gin.WrapH(mcpServer.ServeHTTP()))
-		router.DELETE("/mcp", gin.WrapH(mcpServer.ServeHTTP()))
+		for _, method := range []string{"POST", "GET", "DELETE"} {
+			router.Handle(method, "/mcp", gin.WrapH(mcpServer.ServeHTTP()))
+		}
 
 		// Output server startup message
 		slog.Info("Dynamic HTTP server listening", "addr", addr)
