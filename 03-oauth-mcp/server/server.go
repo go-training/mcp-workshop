@@ -378,8 +378,16 @@ func main() {
 		// Output server startup message
 		slog.Info("MCP HTTP server listening", "addr", addr)
 		// Start the HTTP server, listening on the specified address
-		if err := http.ListenAndServe(addr, router); err != nil {
-			slog.Error("Server error", "error", err)
+		srv := &http.Server{
+			Addr:         addr,
+			Handler:      router,
+			ReadTimeout:  10 * time.Second, // 10 seconds
+			WriteTimeout: 10 * time.Second, // 10 seconds
+			IdleTimeout:  60 * time.Second, // 60 seconds
+		}
+		// Start the HTTP server, listening on the specified address
+		if err := srv.ListenAndServe(); err != nil {
+			slog.Error("Server error", "err", err)
 			os.Exit(1)
 		}
 	default:

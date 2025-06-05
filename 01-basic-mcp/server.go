@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-training/mcp-workshop/pkg/logger"
@@ -22,7 +23,7 @@ type MCPServer struct {
 func NewMCPServer() *MCPServer {
 	// Create MCPServer, set name, version, and middleware (tool capabilities, logging, recovery)
 	mcpServer := server.NewMCPServer(
-		"mcp-with-gin-path-example",       // Server name
+		"mcp-with-gin-example",            // Server name
 		"1.0.0",                           // Version
 		server.WithToolCapabilities(true), // Enable tool capabilities
 		server.WithLogging(),              // Enable logging
@@ -86,7 +87,15 @@ func main() {
 		// Output server startup message
 		slog.Info("Dynamic HTTP server listening", "addr", addr)
 		// Start the HTTP server, listening on the specified address
-		if err := http.ListenAndServe(addr, router); err != nil {
+		srv := &http.Server{
+			Addr:         addr,
+			Handler:      router,
+			ReadTimeout:  10 * time.Second, // 10 seconds
+			WriteTimeout: 10 * time.Second, // 10 seconds
+			IdleTimeout:  60 * time.Second, // 60 seconds
+		}
+		// Start the HTTP server, listening on the specified address
+		if err := srv.ListenAndServe(); err != nil {
 			slog.Error("Server error", "err", err)
 			os.Exit(1)
 		}
