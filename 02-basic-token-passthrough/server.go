@@ -12,7 +12,9 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"time"
 
+	"github.com/gin-gonic/gin"
 	"github.com/go-training/mcp-workshop/pkg/logger"
 	"github.com/go-training/mcp-workshop/pkg/operation"
 	"github.com/mark3labs/mcp-go/mcp"
@@ -254,10 +256,28 @@ func main() {
 			os.Exit(1)
 		}
 	case "http":
-		httpServer := mcpServer.ServeHTTP()
-		slog.Info("HTTP server listening", "addr", addr)
-		if err := httpServer.Start(addr); err != nil {
-			slog.Error("Server error", "error", err)
+		// If transport is http, continue to set up the HTTP server
+		// This will be handled below with Gin
+		// Create a Gin router
+		router := gin.Default()
+		// Register POST, GET, DELETE methods for the /mcp path, all handled by MCPServer
+		for _, method := range []string{"POST", "GET", "DELETE"} {
+			router.Handle(method, "/mcp", gin.WrapH(mcpServer.ServeHTTP()))
+		}
+
+		// Output server startup message
+		slog.Info("Dynamic HTTP server listening", "addr", addr)
+		// Start the HTTP server, listening on the specified address
+		srv := &http.Server{
+			Addr:         addr,
+			Handler:      router,
+			ReadTimeout:  10 * time.Second, // 10 seconds
+			WriteTimeout: 10 * time.Second, // 10 seconds
+			IdleTimeout:  60 * time.Second, // 60 seconds
+		}
+		// Start the HTTP server, listening on the specified address
+		if err := srv.ListenAndServe(); err != nil {
+			slog.Error("Server error", "err", err)
 			os.Exit(1)
 		}
 	default:
