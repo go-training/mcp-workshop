@@ -111,10 +111,33 @@ func main() {
 	}
 }
 
-// AddRequestAttributes sets attributes on the current trace span, the finish log of the current request, and the activity track
+/*
+AddRequestAttributes sets attributes on the current trace span, and if no active span,
+logs the attributes via slog for observability fallback. Also logs trace/span id for correlation.
+*/
 func AddRequestAttributes(ctx context.Context, attrs ...attribute.KeyValue) {
-	// Set attributes on the span
 	span := trace.SpanFromContext(ctx)
+	if span == nil || !span.IsRecording() {
+		// Fallback: log attributes via slog
+		logAttrs := make([]slog.Attr, 0, len(attrs)+3)
+		for _, attr := range attrs {
+			logAttrs = append(logAttrs, slog.Any(string(attr.Key), attr.Value.AsInterface()))
+		}
+		logAttrs = append(logAttrs, slog.Bool("observability.fallback", true))
+		// Try to extract trace/span id if available
+		if span != nil {
+			sc := span.SpanContext()
+			if sc.HasTraceID() {
+				logAttrs = append(logAttrs, slog.String("trace_id", sc.TraceID().String()))
+			}
+			if sc.HasSpanID() {
+				logAttrs = append(logAttrs, slog.String("span_id", sc.SpanID().String()))
+			}
+		}
+		slog.LogAttrs(ctx, slog.LevelInfo, "AddRequestAttributes fallback", logAttrs...)
+		return
+	}
+	// Normal: set attributes on the span
 	span.SetAttributes(attrs...)
 }
 
@@ -123,29 +146,45 @@ func AddRequestAttributes(ctx context.Context, attrs ...attribute.KeyValue) {
 func MCPToolHandlerMiddleware() server.ToolHandlerMiddleware {
 	return func(next server.ToolHandlerFunc) server.ToolHandlerFunc {
 		return func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-			// Tool name attribute
-			AddRequestAttributes(ctx, attribute.String("mcp.tool", req.Params.Name))
+			start := time.Now()
+			// Record tool name and all parameters for observability
+			AddRequestAttributes(
+				ctx,
+				attribute.String("mcp.tool", req.Params.Name),
+				attribute.String("mcp.params", fmt.Sprintf("%+v", req.Params)),
+			)
 
-			// Process and add error attributes
 			res, err := next(ctx, req)
+			durationMs := float64(time.Since(start).Microseconds()) / 1000.0
+
+			// Record execution status and duration for observability
+			status := "ok"
+			var errMsg string
 			if err != nil {
-				AddRequestAttributes(ctx, attribute.String("mcp.error", err.Error()))
-			}
-			if res != nil && res.IsError {
-				var msg string
+				status = "error"
+				errMsg = err.Error()
+			} else if res != nil && res.IsError {
+				status = "error"
 				if len(res.Content) > 0 {
 					txt, ok := res.Content[0].(mcp.TextContent)
 					if ok {
-						msg = txt.Text
+						errMsg = txt.Text
 					} else {
-						msg = fmt.Sprintf("unknown error with content type %T", res.Content[0])
+						errMsg = fmt.Sprintf("unknown error with content type %T", res.Content[0])
 					}
 				} else {
-					msg = "unknown error with no content"
+					errMsg = "unknown error with no content"
 				}
-
-				AddRequestAttributes(ctx, attribute.String("mcp.error", msg))
 			}
+			attrs := []attribute.KeyValue{
+				attribute.String("mcp.status", status),
+				attribute.Float64("mcp.duration_ms", durationMs),
+			}
+			if errMsg != "" {
+				attrs = append(attrs, attribute.String("mcp.error", errMsg))
+			}
+			// Add status, duration, and error attributes to the trace or log
+			AddRequestAttributes(ctx, attrs...)
 
 			return res, err
 		}
