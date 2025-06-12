@@ -86,7 +86,7 @@ func main() {
 		// Create a Gin router
 		router := gin.Default()
 		// Register POST, GET, DELETE methods for the /mcp path, all handled by MCPServer
-		for _, method := range []string{"POST", "GET", "DELETE"} {
+		for _, method := range []string{http.MethodPost, http.MethodGet, http.MethodDelete} {
 			router.Handle(method, "/mcp", gin.WrapH(mcpServer.ServeHTTP()))
 		}
 
