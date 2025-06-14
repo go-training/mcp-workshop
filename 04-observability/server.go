@@ -84,7 +84,8 @@ func main() {
 		// If transport is http, continue to set up the HTTP server
 		// This will be handled below with Gin
 		// Create a Gin router
-		router := gin.Default()
+		router := gin.New()
+		router.Use(gin.Recovery()) // Use Gin's recovery middleware
 		// Register POST, GET, DELETE methods for the /mcp path, all handled by MCPServer
 		for _, method := range []string{http.MethodPost, http.MethodGet, http.MethodDelete} {
 			router.Handle(method, "/mcp", gin.WrapH(mcpServer.ServeHTTP()))
