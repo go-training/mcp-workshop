@@ -121,27 +121,53 @@ logs the attributes via slog for observability fallback. Also logs trace/span id
 func AddRequestAttributes(ctx context.Context, attrs ...attribute.KeyValue) {
 	span := trace.SpanFromContext(ctx)
 	if span == nil || !span.IsRecording() {
-		// Fallback: log attributes via slog
-		logAttrs := make([]slog.Attr, 0, len(attrs)+3)
-		for _, attr := range attrs {
-			logAttrs = append(logAttrs, slog.Any(string(attr.Key), attr.Value.AsInterface()))
-		}
-		logAttrs = append(logAttrs, slog.Bool("observability.fallback", true))
-		// Try to extract trace/span id if available
-		if span != nil {
-			sc := span.SpanContext()
-			if sc.HasTraceID() {
-				logAttrs = append(logAttrs, slog.String("trace_id", sc.TraceID().String()))
-			}
-			if sc.HasSpanID() {
-				logAttrs = append(logAttrs, slog.String("span_id", sc.SpanID().String()))
-			}
-		}
-		slog.LogAttrs(ctx, slog.LevelInfo, "AddRequestAttributes fallback", logAttrs...)
+		slog.LogAttrs(ctx, slog.LevelInfo, "observability.fallback",
+			composeLogAttrs(span, attrs...)...,
+		)
 		return
 	}
-	// Normal: set attributes on the span
 	span.SetAttributes(attrs...)
+}
+
+// composeLogAttrs is a helper to build slog.Attr slice from attributes and span context.
+func composeLogAttrs(span trace.Span, attrs ...attribute.KeyValue) []slog.Attr {
+	logAttrs := make([]slog.Attr, 0, len(attrs)+4)
+	for _, attr := range attrs {
+		logAttrs = append(logAttrs, slog.Any(string(attr.Key), attr.Value.AsInterface()))
+	}
+	logAttrs = append(logAttrs, slog.Bool("observability.fallback", true))
+	if span != nil {
+		sc := span.SpanContext()
+		if sc.HasTraceID() {
+			logAttrs = append(logAttrs, slog.String("trace_id", sc.TraceID().String()))
+		}
+		if sc.HasSpanID() {
+			logAttrs = append(logAttrs, slog.String("span_id", sc.SpanID().String()))
+		}
+	} else {
+		logAttrs = append(logAttrs, slog.String("trace_id", "none"))
+		logAttrs = append(logAttrs, slog.String("span_id", "none"))
+	}
+	return logAttrs
+}
+
+/*
+extractStatusAndError extracts status and error message from the result and error.
+*/
+func extractStatusAndError(res *mcp.CallToolResult, err error) (string, string) {
+	if err != nil {
+		return "error", err.Error()
+	}
+	if res != nil && res.IsError {
+		if len(res.Content) > 0 {
+			if txt, ok := res.Content[0].(mcp.TextContent); ok {
+				return "error", txt.Text
+			}
+			return "error", fmt.Sprintf("unknown error with content type %T", res.Content[0])
+		}
+		return "error", "unknown error with no content"
+	}
+	return "ok", ""
 }
 
 // MCPToolHandlerMiddleware is a middleware for MCP tool handlers that adds MCP-related observability attributes.
@@ -161,24 +187,7 @@ func MCPToolHandlerMiddleware() server.ToolHandlerMiddleware {
 			durationMs := float64(time.Since(start).Microseconds()) / 1000.0
 
 			// Record execution status and duration for observability
-			status := "ok"
-			var errMsg string
-			if err != nil {
-				status = "error"
-				errMsg = err.Error()
-			} else if res != nil && res.IsError {
-				status = "error"
-				if len(res.Content) > 0 {
-					txt, ok := res.Content[0].(mcp.TextContent)
-					if ok {
-						errMsg = txt.Text
-					} else {
-						errMsg = fmt.Sprintf("unknown error with content type %T", res.Content[0])
-					}
-				} else {
-					errMsg = "unknown error with no content"
-				}
-			}
+			status, errMsg := extractStatusAndError(res, err)
 			attrs := []attribute.KeyValue{
 				attribute.String("mcp.status", status),
 				attribute.Float64("mcp.duration_ms", durationMs),
