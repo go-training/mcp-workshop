@@ -49,7 +49,9 @@ func NewMCPServer() *MCPServer {
 // ServeHTTP returns a streamable HTTP server that injects the auth token
 // from HTTP requests into the context.
 func (s *MCPServer) ServeHTTP() *server.StreamableHTTPServer {
-	return server.NewStreamableHTTPServer(s.server)
+	return server.NewStreamableHTTPServer(s.server,
+		server.WithHeartbeatInterval(30*time.Second),
+	)
 }
 
 // ServeStdio starts the MCP server using stdio transport, injecting the

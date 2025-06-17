@@ -41,7 +41,9 @@ func NewMCPServer() *MCPServer {
 // ServeHTTP produces a streamable HTTP server, wrapping the MCPServer as an HTTP handler.
 // Returns: *server.StreamableHTTPServer, which can be used for HTTP routing.
 func (s *MCPServer) ServeHTTP() *server.StreamableHTTPServer {
-	return server.NewStreamableHTTPServer(s.server)
+	return server.NewStreamableHTTPServer(s.server,
+		server.WithHeartbeatInterval(30*time.Second),
+	)
 }
 
 // main function, the program entry point, responsible for parsing flags and starting the HTTP server.

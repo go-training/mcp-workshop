@@ -209,6 +209,7 @@ func NewMCPServer() *MCPServer {
 // from HTTP requests into the context.
 func (s *MCPServer) ServeHTTP() *server.StreamableHTTPServer {
 	return server.NewStreamableHTTPServer(s.server,
+		server.WithHeartbeatInterval(30*time.Second),
 		server.WithHTTPContextFunc(func(ctx context.Context, r *http.Request) context.Context {
 			ctx = authFromRequest(ctx, r)
 			return withRequestID(ctx)
