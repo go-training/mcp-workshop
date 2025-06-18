@@ -26,8 +26,16 @@ type MCPServer struct {
 	server *server.MCPServer
 }
 
-// NewMCPServer creates and configures a new MCPServer instance.
-// Registers the make_authenticated_request and show_auth_token tools.
+/*
+NewMCPServer creates and configures a new instance of MCPServer.
+
+It registers available tools (such as make_authenticated_request and show_auth_token)
+with the underlying MCP server, configures logging, recovery, and tool handler middleware
+for observability and error handling purposes.
+
+Returns:
+  - Pointer to a fully initialized MCPServer, ready to serve via HTTP or stdio transports.
+*/
 func NewMCPServer() *MCPServer {
 	mcpServer := server.NewMCPServer(
 		"mcp-server-observability",
@@ -46,20 +54,43 @@ func NewMCPServer() *MCPServer {
 	}
 }
 
-// ServeHTTP returns a streamable HTTP server that injects the auth token
-// from HTTP requests into the context.
+/*
+ServeHTTP constructs and returns a streamable HTTP server utilizing the underlying MCP server.
+
+The returned HTTP server is configured to inject authentication tokens from HTTP requests
+into the context, and it is suitable for long-running, persistent client-server communication
+according to the MCP protocol.
+
+Returns:
+  - A pointer to a StreamableHTTPServer instance that can be used with an HTTP handler (e.g., Gin).
+*/
 func (s *MCPServer) ServeHTTP() *server.StreamableHTTPServer {
 	return server.NewStreamableHTTPServer(s.server,
 		server.WithHeartbeatInterval(30*time.Second),
 	)
 }
 
-// ServeStdio starts the MCP server using stdio transport, injecting the
-// auth token from the environment into the context.
+/*
+ServeStdio starts the MCP server using standard input/output (stdio) as its transport.
+
+The authentication token is extracted from the environment and injected into the
+request context for each call, allowing headless or locally-scripted interactions.
+
+Returns:
+  - An error if the server fails to start or encounters any issue, nil on clean exit.
+*/
 func (s *MCPServer) ServeStdio() error {
 	return server.ServeStdio(s.server)
 }
 
+/*
+main is the application entry point.
+
+It initializes logging, parses command-line flags for transport type and address,
+then starts the MCP server accordingly—either over stdio or HTTP, using Gin as the HTTP router.
+
+Exits with a non-zero status on failure.
+*/
 func main() {
 	logger.New()
 	var transport string
@@ -115,8 +146,15 @@ func main() {
 }
 
 /*
-AddRequestAttributes sets attributes on the current trace span, and if no active span,
-logs the attributes via slog for observability fallback. Also logs trace/span id for correlation.
+AddRequestAttributes sets OpenTelemetry attributes on the current trace span for enhanced observability.
+
+If there is no active trace span in the provided context or the span is not recording,
+the attributes (along with trace IDs or an explicit "none" fallback) are logged using slog instead.
+This ensures that observability metadata is always reported, even outside traced execution.
+
+Parameters:
+  - ctx: The context tied to the trace span or logger.
+  - attrs: One or more OpenTelemetry attribute.KeyValue pairs to record or log.
 */
 func AddRequestAttributes(ctx context.Context, attrs ...attribute.KeyValue) {
 	span := trace.SpanFromContext(ctx)
@@ -129,7 +167,20 @@ func AddRequestAttributes(ctx context.Context, attrs ...attribute.KeyValue) {
 	span.SetAttributes(attrs...)
 }
 
-// composeLogAttrs is a helper to build slog.Attr slice from attributes and span context.
+/*
+composeLogAttrs converts OpenTelemetry attributes and optional span context
+to a slice of slog.Attr for structured logging.
+
+Each provided attribute is included, along with a fallback flag and the
+trace and span IDs (or "none" if unavailable).
+
+Parameters:
+  - span: The trace.Span whose context (trace/span IDs) will be recorded (optional).
+  - attrs: List of OpenTelemetry attributes to convert.
+
+Returns:
+  - A slice of slog.Attr containing the structured log information.
+*/
 func composeLogAttrs(span trace.Span, attrs ...attribute.KeyValue) []slog.Attr {
 	logAttrs := make([]slog.Attr, 0, len(attrs)+4)
 	for _, attr := range attrs {
@@ -170,8 +221,17 @@ func extractStatusAndError(res *mcp.CallToolResult, err error) (string, string) 
 	return "ok", ""
 }
 
-// MCPToolHandlerMiddleware is a middleware for MCP tool handlers that adds MCP-related observability attributes.
-// It is expected to run on an MCP server that has already been wrapped with observability.Middleware(...).
+/*
+MCPToolHandlerMiddleware returns a middleware function for MCP tool handlers
+that injects MCP-related observability attributes into the current trace or log entry.
+
+This middleware records the tool name, request parameters, execution status
+(success or error), error messages, and the wall-clock duration in milliseconds for each call.
+It is intended to be stacked after any global observability middleware for consistent metrics.
+
+Returns:
+  - A ToolHandlerMiddleware compatible with the MCP server, for enhanced traceability and monitoring.
+*/
 func MCPToolHandlerMiddleware() server.ToolHandlerMiddleware {
 	return func(next server.ToolHandlerFunc) server.ToolHandlerFunc {
 		return func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
