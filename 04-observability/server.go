@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/go-training/mcp-workshop/pkg/logger"
@@ -143,7 +144,7 @@ func main() {
 
 		// Setup graceful shutdown handling
 		// Create a context that is cancelled on SIGINT or SIGTERM
-		shutdownCtx, stop := signal.NotifyContext(context.Background(), os.Interrupt, os.Kill)
+		shutdownCtx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM, syscall.SIGTSTP)
 		defer stop()
 
 		// Start the server in a goroutine
