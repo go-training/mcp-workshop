@@ -115,9 +115,19 @@ func main() {
 		// Create a Gin router
 		router := gin.New()
 		router.Use(gin.Recovery()) // Use Gin's recovery middleware
+
+		// Handler to ensure context propagation from Gin to MCP server handler
+		withGinContext := func(h http.Handler) gin.HandlerFunc {
+			return func(c *gin.Context) {
+				// Pass Gin's context to the underlying handler
+				req := c.Request.WithContext(c.Request.Context())
+				h.ServeHTTP(c.Writer, req)
+			}
+		}
+
 		// Register POST, GET, DELETE methods for the /mcp path, all handled by MCPServer
 		for _, method := range []string{http.MethodPost, http.MethodGet, http.MethodDelete} {
-			router.Handle(method, "/mcp", gin.WrapH(mcpServer.ServeHTTP()))
+			router.Handle(method, "/mcp", withGinContext(mcpServer.ServeHTTP()))
 		}
 
 		// Output server startup message
