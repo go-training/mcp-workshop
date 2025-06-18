@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"os/signal"
 	"time"
 
 	"github.com/go-training/mcp-workshop/pkg/logger"
@@ -132,7 +133,6 @@ func main() {
 
 		// Output server startup message
 		slog.Info("Dynamic HTTP server listening", "addr", addr)
-		// Start the HTTP server, listening on the specified address
 		srv := &http.Server{
 			Addr:         addr,
 			Handler:      router,
@@ -140,10 +140,35 @@ func main() {
 			WriteTimeout: 10 * time.Second, // 10 seconds
 			IdleTimeout:  60 * time.Second, // 60 seconds
 		}
-		// Start the HTTP server, listening on the specified address
-		if err := srv.ListenAndServe(); err != nil {
-			slog.Error("Server error", "err", err)
-			os.Exit(1)
+
+		// Setup graceful shutdown handling
+		// Create a context that is cancelled on SIGINT or SIGTERM
+		shutdownCtx, stop := signal.NotifyContext(context.Background(), os.Interrupt, os.Kill)
+		defer stop()
+
+		// Start the server in a goroutine
+		serverErrCh := make(chan error, 1)
+		go func() {
+			serverErrCh <- srv.ListenAndServe()
+		}()
+
+		select {
+		case <-shutdownCtx.Done():
+			// Received termination signal
+			slog.Info("Shutting down HTTP server...")
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+			if err := srv.Shutdown(ctx); err != nil {
+				slog.Error("HTTP server shutdown error", "err", err)
+				os.Exit(1)
+			} else {
+				slog.Info("HTTP server shut down gracefully")
+			}
+		case err := <-serverErrCh:
+			if err != nil && err != http.ErrServerClosed {
+				slog.Error("Server error", "err", err)
+				os.Exit(1)
+			}
 		}
 	default:
 		slog.Error("Invalid transport type", "transport", transport)
