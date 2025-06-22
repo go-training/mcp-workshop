@@ -13,20 +13,25 @@ import (
 // It uses text format and DEBUG level for development, JSON and INFO for production.
 type callerHandler struct {
 	slog.Handler
-	projectRoot string
+}
+
+// trimPathDepth keeps only the last n segments of the given path.
+// Example: trimPathDepth("a/b/c/d.go", 3) => "b/c/d.go"
+func trimPathDepth(path string, depth int) string {
+	parts := strings.Split(path, string(os.PathSeparator))
+	if len(parts) <= depth {
+		return path
+	}
+	return strings.Join(parts[len(parts)-depth:], string(os.PathSeparator))
 }
 
 func (h *callerHandler) Handle(ctx context.Context, r slog.Record) error {
-	// skip 3 stack frames to get the actual caller of the log function
+	// Skip 3 stack frames to get the actual caller of the log function
 	_, file, line, ok := runtime.Caller(3)
 	caller := ""
 	if ok {
-		relPath := file
-		if strings.HasPrefix(file, h.projectRoot) {
-			relPath = file[len(h.projectRoot):]
-			// Remove leading slash if present
-			relPath = strings.TrimPrefix(relPath, "/")
-		}
+		// Always show only the last 3 segments of the file path for readability
+		relPath := trimPathDepth(file, 3)
 		caller = fmt.Sprintf("%s:%d", relPath, line)
 	} else {
 		caller = "unknown"
@@ -37,7 +42,7 @@ func (h *callerHandler) Handle(ctx context.Context, r slog.Record) error {
 
 // New initializes the default logger for the application.
 // It uses text format and DEBUG level for development, JSON and INFO for production.
-func New() {
+func New() *slog.Logger {
 	var handler slog.Handler
 	handler = slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
 		Level: slog.LevelDebug,
@@ -47,15 +52,10 @@ func New() {
 			Level: slog.LevelInfo,
 		})
 	}
-	// Get project root directory
-	projectRoot, err := os.Getwd()
-	if err != nil {
-		projectRoot = ""
-	}
 	// Wrap with callerHandler to inject caller info
 	handler = &callerHandler{
-		Handler:     handler,
-		projectRoot: projectRoot,
+		Handler: handler,
 	}
 	slog.SetDefault(slog.New(handler))
+	return slog.Default()
 }

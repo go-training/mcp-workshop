@@ -93,7 +93,7 @@ then starts the MCP server accordingly—either over stdio or HTTP, using Gin as
 Exits with a non-zero status on failure.
 */
 func main() {
-	logger.New()
+	l := logger.New()
 	var transport string
 	var addr string
 	flag.StringVar(&addr, "addr", ":8080", "address to listen on")
@@ -111,7 +111,11 @@ func main() {
 			os.Exit(1)
 		}
 	case "http":
-		m := graceful.NewManager()
+		m := graceful.NewManager(
+			graceful.WithLogger(graceful.NewSlogLogger(
+				graceful.WithSlog(l),
+			)),
+		)
 		// If transport is http, continue to set up the HTTP server
 		// This will be handled below with Gin
 		// Create a Gin router
