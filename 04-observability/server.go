@@ -9,10 +9,9 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
-	"os/signal"
-	"syscall"
 	"time"
 
+	"github.com/appleboy/graceful"
 	"github.com/go-training/mcp-workshop/pkg/logger"
 	"github.com/go-training/mcp-workshop/pkg/operation"
 
@@ -112,6 +111,7 @@ func main() {
 			os.Exit(1)
 		}
 	case "http":
+		m := graceful.NewManager()
 		// If transport is http, continue to set up the HTTP server
 		// This will be handled below with Gin
 		// Create a Gin router
@@ -133,7 +133,6 @@ func main() {
 		}
 
 		// Output server startup message
-		slog.Info("Dynamic HTTP server listening", "addr", addr)
 		srv := &http.Server{
 			Addr:         addr,
 			Handler:      router,
@@ -141,36 +140,19 @@ func main() {
 			WriteTimeout: 10 * time.Second, // 10 seconds
 			IdleTimeout:  60 * time.Second, // 60 seconds
 		}
-
-		// Setup graceful shutdown handling
-		// Create a context that is cancelled on SIGINT or SIGTERM
-		shutdownCtx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM, syscall.SIGTSTP)
-		defer stop()
-
-		// Start the server in a goroutine
-		serverErrCh := make(chan error, 1)
-		go func() {
-			serverErrCh <- srv.ListenAndServe()
-		}()
-
-		select {
-		case <-shutdownCtx.Done():
-			// Received termination signal
-			slog.Info("Shutting down HTTP server...")
-			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		m.AddRunningJob(func(ctx context.Context) error {
+			// Output server startup message
+			slog.Info("Dynamic HTTP server listening", "addr", addr)
+			return srv.ListenAndServe()
+		})
+		m.AddShutdownJob(func() error {
+			slog.Info("Shutting down HTTP server gracefully")
+			// Create a context with a timeout for the shutdown process
+			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 			defer cancel()
-			if err := srv.Shutdown(ctx); err != nil {
-				slog.Error("HTTP server shutdown error", "err", err)
-				os.Exit(1)
-			} else {
-				slog.Info("HTTP server shut down gracefully")
-			}
-		case err := <-serverErrCh:
-			if err != nil && err != http.ErrServerClosed {
-				slog.Error("Server error", "err", err)
-				os.Exit(1)
-			}
-		}
+			return srv.Shutdown(ctx)
+		})
+		<-m.Done()
 	default:
 		slog.Error("Invalid transport type", "transport", transport)
 		os.Exit(1)

@@ -3,6 +3,7 @@ module github.com/go-training/mcp-workshop
 go 1.24.3
 
 require (
+	github.com/appleboy/graceful v1.2.1
 	github.com/gin-gonic/gin v1.10.1
 	github.com/mark3labs/mcp-go v0.31.0
 	go.opentelemetry.io/otel v1.36.0
