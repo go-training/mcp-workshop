@@ -21,7 +21,42 @@ The server provides:
 
 ### OAuth Authorization Flow (Server Conceptual)
 
-![OAuth Flow](../images/oauth-flow-02.png)
+```mermaid
+sequenceDiagram
+    participant B as User-Agent (Browser)
+    participant C as Client
+    participant M as MCP Server (Resource Server)
+    participant A as Authorization Server
+
+    C->>M: MCP request without token
+    M->>C: HTTP 401 Unauthorized with WWW-Authenticate header
+    Note over C: Extract resource_metadata URL from WWW-Authenticate
+
+    C->>M: Request Protected Resource Metadata
+    M->>C: Return metadata
+
+    Note over C: Parse metadata and extract authorization server(s)<br/>Client determines AS to use
+
+    C->>A: GET /.well-known/oauth-authorization-server
+    A->>C: Authorization server metadata response
+
+    alt Dynamic client registration
+        C->>A: POST /register
+        A->>C: Client Credentials
+    end
+
+    Note over C: Generate PKCE parameters
+    C->>B: Open browser with authorization URL + code_challenge
+    B->>A: Authorization request
+    Note over A: User authorizes
+    A->>B: Redirect to callback with authorization code
+    B->>C: Authorization code callback
+    C->>A: Token request + code_verifier
+    A->>C: Access token (+ refresh token)
+    C->>M: MCP request with access token
+    M-->>C: MCP response
+    Note over C,M: MCP communication continues with valid token
+```
 
 ---
 
