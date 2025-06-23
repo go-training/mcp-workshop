@@ -58,15 +58,11 @@ func main() {
 
 	// Try to initialize the client
 	result, err := c.Initialize(context.Background(), mcp.InitializeRequest{
-		Params: struct {
-			ProtocolVersion string                 `json:"protocolVersion"`
-			Capabilities    mcp.ClientCapabilities `json:"capabilities"`
-			ClientInfo      mcp.Implementation     `json:"clientInfo"`
-		}{
+		Params: mcp.InitializeParams{
 			ProtocolVersion: mcp.LATEST_PROTOCOL_VERSION,
 			ClientInfo: mcp.Implementation{
-				Name:    "mcp-go-oauth-example",
-				Version: "0.1.0",
+				Name:    "mcp-oauth-client-example",
+				Version: "1.0.0",
 			},
 		},
 	})
