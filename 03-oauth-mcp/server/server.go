@@ -173,7 +173,7 @@ type MCPServer struct {
 // Registers the make_authenticated_request and show_auth_token tools.
 func NewMCPServer() *MCPServer {
 	mcpServer := server.NewMCPServer(
-		"example-server",
+		"example-oauth-server",
 		"1.0.0",
 		server.WithToolCapabilities(true),
 		server.WithLogging(),
@@ -229,170 +229,146 @@ func (s *MCPServer) ServeStdio() error {
 
 func main() {
 	logger.New()
-	var t string
 	var addr string
 	flag.StringVar(&addr, "addr", ":8080", "address to listen on")
-	flag.StringVar(&t, "t", "sse", "Transport type (sse or http)")
-	flag.StringVar(
-		&t,
-		"transport",
-		"sse",
-		"Transport type (sse or http)",
-	)
 	flag.Parse()
 
 	mcpServer := NewMCPServer()
 
-	switch t {
-	case "sse":
-		// If transport is sse, start the MCP server using SSE transport
-		sseServer := server.NewSSEServer(mcpServer.server)
-		slog.Info("MCP SSE server listening", "addr", addr)
-		if err := sseServer.Start(addr); err != nil {
-			slog.Error("Server error", "error", err)
-			os.Exit(1)
-		}
-	case "http":
-		// If transport is http, continue to set up the HTTP server
-		// This will be handled below with Gin
-		// Create a Gin router
-		router := gin.Default()
+	// Use only HTTP server (SSE transport removed)
+	router := gin.Default()
 
-		// Middleware to check Authorization header
-		authMiddleware := func(c *gin.Context) {
-			if c.GetHeader("Authorization") == "" {
-				c.AbortWithStatus(http.StatusUnauthorized)
+	// Middleware to check Authorization header
+	authMiddleware := func(c *gin.Context) {
+		if c.GetHeader("Authorization") == "" {
+			c.AbortWithStatus(http.StatusUnauthorized)
+			return
+		}
+		c.Next()
+	}
+
+	// CORS middleware for handling preflight and actual requests
+	corsMiddleware := func(allowedHeaders ...string) gin.HandlerFunc {
+		headers := "Mcp-Protocol-Version, Authorization, Content-Type"
+		if len(allowedHeaders) > 0 {
+			headers = ""
+			for i, h := range allowedHeaders {
+				if i > 0 {
+					headers += ", "
+				}
+				headers += h
+			}
+		}
+		return func(c *gin.Context) {
+			c.Header("Access-Control-Allow-Origin", "*")
+			c.Header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+			c.Header("Access-Control-Allow-Headers", headers)
+			c.Header("Access-Control-Max-Age", "86400")
+			if c.Request.Method == "OPTIONS" {
+				c.AbortWithStatus(http.StatusNoContent)
 				return
 			}
 			c.Next()
 		}
+	}
 
-		// CORS middleware for handling preflight and actual requests
-		corsMiddleware := func(allowedHeaders ...string) gin.HandlerFunc {
-			headers := "Mcp-Protocol-Version, Authorization, Content-Type"
-			if len(allowedHeaders) > 0 {
-				headers = ""
-				for i, h := range allowedHeaders {
-					if i > 0 {
-						headers += ", "
-					}
-					headers += h
-				}
-			}
-			return func(c *gin.Context) {
-				c.Header("Access-Control-Allow-Origin", "*")
-				c.Header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-				c.Header("Access-Control-Allow-Headers", headers)
-				c.Header("Access-Control-Max-Age", "86400")
-				if c.Request.Method == "OPTIONS" {
-					c.AbortWithStatus(http.StatusNoContent)
-					return
-				}
-				c.Next()
-			}
+	router.Use(corsMiddleware())
+
+	// Register POST, GET, DELETE methods for the /mcp path, all handled by MCPServer
+	router.POST("/mcp", authMiddleware, gin.WrapH(mcpServer.ServeHTTP()))
+	router.GET("/mcp", authMiddleware, gin.WrapH(mcpServer.ServeHTTP()))
+	router.DELETE("/mcp", authMiddleware, gin.WrapH(mcpServer.ServeHTTP()))
+
+	router.GET("/.well-known/oauth-protected-resource", corsMiddleware(), func(c *gin.Context) {
+		metadata := &transport.OAuthProtectedResource{
+			AuthorizationServers: []string{"http://localhost:8080"},
+			Resource:             "Example OAuth Protected Resource",
+			ResourceName:         "Example OAuth Protected Resource",
 		}
+		c.JSON(http.StatusOK, metadata)
+	})
 
-		router.Use(corsMiddleware())
-
-		// Register POST, GET, DELETE methods for the /mcp path, all handled by MCPServer
-		router.POST("/mcp", authMiddleware, gin.WrapH(mcpServer.ServeHTTP()))
-		router.GET("/mcp", authMiddleware, gin.WrapH(mcpServer.ServeHTTP()))
-		router.DELETE("/mcp", authMiddleware, gin.WrapH(mcpServer.ServeHTTP()))
-
-		router.GET("/.well-known/oauth-protected-resource", corsMiddleware(), func(c *gin.Context) {
-			metadata := &transport.OAuthProtectedResource{
-				AuthorizationServers: []string{"http://localhost:8080"},
-				Resource:             "Example OAuth Protected Resource",
-				ResourceName:         "Example OAuth Protected Resource",
-			}
-			c.JSON(http.StatusOK, metadata)
-		})
-
-		router.GET("/.well-known/oauth-authorization-server", corsMiddleware(), func(c *gin.Context) {
-			metadata := transport.AuthServerMetadata{
-				Issuer:                            "http://localhost:8080",
-				AuthorizationEndpoint:             "https://github.com/login/oauth/authorize",
-				TokenEndpoint:                     "https://github.com/login/oauth/access_token",
-				RegistrationEndpoint:              "http://localhost:8080/register",
-				ScopesSupported:                   []string{"openid", "profile", "email"},
-				ResponseTypesSupported:            []string{"code", "token"},
-				GrantTypesSupported:               []string{"authorization_code", "client_credentials", "refresh_token"},
-				TokenEndpointAuthMethodsSupported: []string{"client_secret_basic", "client_secret_post"},
-			}
-			c.JSON(http.StatusOK, metadata)
-		})
-
-		router.GET("/authorize", corsMiddleware("Authorization", "Content-Type"), func(c *gin.Context) {
-			clientID := c.Query("client_id")
-			if clientID == "" {
-				c.JSON(http.StatusBadRequest, gin.H{"error": "client_id is required"})
-				return
-			}
-			state := c.Query("state")
-			if state == "" {
-				c.JSON(http.StatusBadRequest, gin.H{"error": "state is required"})
-				return
-			}
-			redirectURL := fmt.Sprintf("https://github.com/login/oauth/authorize?client_id=%s&state=%s", clientID, state)
-			c.Redirect(http.StatusFound, redirectURL)
-		})
-
-		router.POST("/token", corsMiddleware("Authorization", "Content-Type"), func(c *gin.Context) {
-			grantType := c.PostForm("grant_type")
-			code := c.PostForm("code")
-			clientID := c.PostForm("client_id")
-			redirectURI := c.PostForm("redirect_uri")
-			slog.Info("Token request received", "grant_type", grantType, "client_id", clientID, "redirect_uri", redirectURI)
-			if grantType != "authorization_code" {
-				c.JSON(http.StatusBadRequest, gin.H{"error": "unsupported grant_type"})
-				return
-			}
-			if code == "" || clientID == "" || redirectURI == "" {
-				c.JSON(http.StatusBadRequest, gin.H{"error": "code, client_id, and redirect_uri are required"})
-				return
-			}
-			// Simulate token generation
-			token := "test-access-token"
-			response := map[string]interface{}{
-				"access_token":  token,
-				"token_type":    "bearer",
-				"refresh_token": "test-refresh-token",
-				"scope":         "mcp.read mcp.write",
-				"expires_in":    3600,
-				"expires_at":    time.Now().Add(3600 * time.Second).Format(time.RFC3339),
-			}
-			c.JSON(http.StatusOK, response)
-		})
-
-		// Add /register endpoint: echoes back the JSON body
-		router.POST("/register", corsMiddleware("Authorization", "Content-Type"), func(c *gin.Context) {
-			var body map[string]interface{}
-			if err := c.ShouldBindJSON(&body); err != nil {
-				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-				return
-			}
-			body["client_id"] = "test-client-id"
-			body["client_secret"] = "test-client-secret"
-			c.JSON(http.StatusOK, body)
-		})
-
-		// Output server startup message
-		slog.Info("MCP HTTP server listening", "addr", addr)
-		// Start the HTTP server, listening on the specified address
-		srv := &http.Server{
-			Addr:         addr,
-			Handler:      router,
-			ReadTimeout:  10 * time.Second, // 10 seconds
-			WriteTimeout: 10 * time.Second, // 10 seconds
-			IdleTimeout:  60 * time.Second, // 60 seconds
+	router.GET("/.well-known/oauth-authorization-server", corsMiddleware(), func(c *gin.Context) {
+		metadata := transport.AuthServerMetadata{
+			Issuer:                            "http://localhost:8080",
+			AuthorizationEndpoint:             "https://github.com/login/oauth/authorize",
+			TokenEndpoint:                     "https://github.com/login/oauth/access_token",
+			RegistrationEndpoint:              "http://localhost:8080/register",
+			ScopesSupported:                   []string{"openid", "profile", "email"},
+			ResponseTypesSupported:            []string{"code", "token"},
+			GrantTypesSupported:               []string{"authorization_code", "client_credentials", "refresh_token"},
+			TokenEndpointAuthMethodsSupported: []string{"client_secret_basic", "client_secret_post"},
 		}
-		// Start the HTTP server, listening on the specified address
-		if err := srv.ListenAndServe(); err != nil {
-			slog.Error("Server error", "err", err)
-			os.Exit(1)
+		c.JSON(http.StatusOK, metadata)
+	})
+
+	router.GET("/authorize", corsMiddleware("Authorization", "Content-Type"), func(c *gin.Context) {
+		clientID := c.Query("client_id")
+		if clientID == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "client_id is required"})
+			return
 		}
-	default:
-		slog.Error("Invalid transport type", "transport", t)
+		state := c.Query("state")
+		if state == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "state is required"})
+			return
+		}
+		redirectURL := fmt.Sprintf("https://github.com/login/oauth/authorize?client_id=%s&state=%s", clientID, state)
+		c.Redirect(http.StatusFound, redirectURL)
+	})
+
+	router.POST("/token", corsMiddleware("Authorization", "Content-Type"), func(c *gin.Context) {
+		grantType := c.PostForm("grant_type")
+		code := c.PostForm("code")
+		clientID := c.PostForm("client_id")
+		redirectURI := c.PostForm("redirect_uri")
+		slog.Info("Token request received", "grant_type", grantType, "client_id", clientID, "redirect_uri", redirectURI)
+		if grantType != "authorization_code" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "unsupported grant_type"})
+			return
+		}
+		if code == "" || clientID == "" || redirectURI == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "code, client_id, and redirect_uri are required"})
+			return
+		}
+		// Simulate token generation
+		token := "test-access-token"
+		response := map[string]interface{}{
+			"access_token":  token,
+			"token_type":    "bearer",
+			"refresh_token": "test-refresh-token",
+			"scope":         "mcp.read mcp.write",
+			"expires_in":    3600,
+			"expires_at":    time.Now().Add(3600 * time.Second).Format(time.RFC3339),
+		}
+		c.JSON(http.StatusOK, response)
+	})
+
+	// Add /register endpoint: echoes back the JSON body
+	router.POST("/register", corsMiddleware("Authorization", "Content-Type"), func(c *gin.Context) {
+		var body map[string]interface{}
+		if err := c.ShouldBindJSON(&body); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		body["client_id"] = "test-client-id"
+		body["client_secret"] = "test-client-secret"
+		c.JSON(http.StatusOK, body)
+	})
+
+	// Output server startup message
+	slog.Info("MCP HTTP server listening", "addr", addr)
+	// Start the HTTP server, listening on the specified address
+	srv := &http.Server{
+		Addr:         addr,
+		Handler:      router,
+		ReadTimeout:  10 * time.Second, // 10 seconds
+		WriteTimeout: 10 * time.Second, // 10 seconds
+		IdleTimeout:  60 * time.Second, // 60 seconds
+	}
+	// Start the HTTP server, listening on the specified address
+	if err := srv.ListenAndServe(); err != nil {
+		slog.Error("Server error", "err", err)
 		os.Exit(1)
 	}
 }
