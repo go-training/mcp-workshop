@@ -235,7 +235,7 @@ func main() {
 	flag.StringVar(&clientID, "client_id", "", "OAuth 2.0 Client ID")
 	flag.StringVar(&clientSecret, "client_secret", "", "OAuth 2.0 Client Secret")
 	// Use a flag to specify the address to listen on
-	flag.StringVar(&addr, "addr", ":8080", "address to listen on")
+	flag.StringVar(&addr, "addr", ":8095", "address to listen on")
 	flag.Parse()
 
 	if clientID == "" || clientSecret == "" {
@@ -291,7 +291,7 @@ func main() {
 
 	router.GET("/.well-known/oauth-protected-resource", corsMiddleware(), func(c *gin.Context) {
 		metadata := &transport.OAuthProtectedResource{
-			AuthorizationServers: []string{"http://localhost:8080"},
+			AuthorizationServers: []string{"http://localhost" + addr + "/.well-known/oauth-authorization-server"},
 			Resource:             "Example OAuth Protected Resource",
 			ResourceName:         "Example OAuth Protected Resource",
 		}
@@ -300,10 +300,10 @@ func main() {
 
 	router.GET("/.well-known/oauth-authorization-server", corsMiddleware(), func(c *gin.Context) {
 		metadata := transport.AuthServerMetadata{
-			Issuer:                            "http://localhost:8080",
-			AuthorizationEndpoint:             "https://github.com/login/oauth/authorize",
-			TokenEndpoint:                     "https://github.com/login/oauth/access_token",
-			RegistrationEndpoint:              "http://localhost:8080/register",
+			Issuer:                            "http://localhost" + addr,
+			AuthorizationEndpoint:             "http://localhost" + addr + "/authorize",
+			TokenEndpoint:                     "http://localhost" + addr + "/token",
+			RegistrationEndpoint:              "http://localhost" + addr + "/register",
 			ScopesSupported:                   []string{"openid", "profile", "email"},
 			ResponseTypesSupported:            []string{"code"},
 			GrantTypesSupported:               []string{"authorization_code", "client_credentials", "refresh_token"},
