@@ -19,11 +19,9 @@ The server provides:
 
 ## Flowcharts
 
-### OAuth Authorization Flow (Conceptual)
+### OAuth Authorization Flow (Server Conceptual)
 
-![OAuth Flow Step 1](../images/oauth-flow-01.png)
-
-![OAuth Flow Step 2](../images/oauth-flow-02.png)
+![OAuth Flow](../images/oauth-flow-02.png)
 
 ---
 
@@ -95,6 +93,12 @@ flowchart TD
 
 ---
 
+## See Also
+
+For OAuth MCP Client features, flow, and usage, please refer to the client documentation in [`client/README.md`](client/README.md).
+
+---
+
 ## References
 
 - [MCP Documentation](https://mark3.ai/docs/mcp/)
@@ -103,4 +107,4 @@ flowchart TD
 
 ---
 
-For implementation details, see [`server/server.go`](server/server.go:1).
+For server implementation details, see [`server/server.go`](server/server.go:1).
