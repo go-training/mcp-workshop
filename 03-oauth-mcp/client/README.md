@@ -66,14 +66,7 @@ flowchart LR
     cd 03-oauth-mcp/client
     ```
 
-2. Set your client credentials if desired:
-
-    ```bash
-    export MCP_CLIENT_ID=your-client-id
-    export MCP_CLIENT_SECRET=your-client-secret
-    ```
-
-3. Start the client:
+2. Start the client:
 
     ```bash
     go run client.go
