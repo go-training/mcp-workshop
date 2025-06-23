@@ -295,9 +295,10 @@ func main() {
 			TokenEndpoint:                     "https://github.com/login/oauth/access_token",
 			RegistrationEndpoint:              "http://localhost:8080/register",
 			ScopesSupported:                   []string{"openid", "profile", "email"},
-			ResponseTypesSupported:            []string{"code", "token"},
+			ResponseTypesSupported:            []string{"code"},
 			GrantTypesSupported:               []string{"authorization_code", "client_credentials", "refresh_token"},
 			TokenEndpointAuthMethodsSupported: []string{"client_secret_basic", "client_secret_post"},
+			CodeChallengeMethodsSupported:     []string{"S256"},
 		}
 		c.JSON(http.StatusOK, metadata)
 	})
