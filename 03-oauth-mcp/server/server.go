@@ -230,8 +230,18 @@ func (s *MCPServer) ServeStdio() error {
 func main() {
 	logger.New()
 	var addr string
+	var clientID string
+	var clientSecret string
+	flag.StringVar(&clientID, "client_id", "", "OAuth 2.0 Client ID")
+	flag.StringVar(&clientSecret, "client_secret", "", "OAuth 2.0 Client Secret")
+	// Use a flag to specify the address to listen on
 	flag.StringVar(&addr, "addr", ":8080", "address to listen on")
 	flag.Parse()
+
+	if clientID == "" || clientSecret == "" {
+		slog.Error("Client ID and Client Secret must be provided")
+		os.Exit(1)
+	}
 
 	mcpServer := NewMCPServer()
 
@@ -352,8 +362,8 @@ func main() {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
-		body["client_id"] = "test-client-id"
-		body["client_secret"] = "test-client-secret"
+		body["client_id"] = clientID
+		body["client_secret"] = clientSecret
 		c.JSON(http.StatusOK, body)
 	})
 

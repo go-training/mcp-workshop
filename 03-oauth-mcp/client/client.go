@@ -2,8 +2,7 @@ package main
 
 import (
 	"context"
-	"flag"
-	"fmt"
+	"errors"
 	"log/slog"
 	"net/http"
 	"os"
@@ -22,20 +21,14 @@ const (
 )
 
 func main() {
-	var clientID string
-	var clientSecret string
-	flag.StringVar(&clientID, "client_id", "", "OAuth 2.0 Client ID")
-	flag.StringVar(&clientSecret, "client_secret", "", "OAuth 2.0 Client Secret")
-	flag.Parse()
-
 	// Create a token store to persist tokens
 	tokenStore := client.NewMemoryTokenStore()
 
 	// Create OAuth configuration
 	oauthConfig := client.OAuthConfig{
 		// Client ID can be empty if using dynamic registration
-		ClientID:     clientID,
-		ClientSecret: clientSecret,
+		ClientID:     os.Getenv("MCP_CLIENT_ID"),
+		ClientSecret: os.Getenv("MCP_CLIENT_SECRET"),
 		RedirectURI:  redirectURI,
 		Scopes:       []string{"mcp.read", "mcp.write"},
 		TokenStore:   tokenStore,
@@ -69,7 +62,7 @@ func main() {
 
 	// Check if we need OAuth authorization
 	if client.IsOAuthAuthorizationRequiredError(err) {
-		fmt.Println("OAuth authorization required. Starting authorization flow...")
+		slog.Info("OAuth authorization required. Starting authorization flow...")
 
 		// Get the OAuth handler from the error
 		oauthHandler := client.GetOAuthHandler(err)
@@ -94,6 +87,12 @@ func main() {
 			os.Exit(1)
 		}
 
+		err = oauthHandler.RegisterClient(context.Background(), "mcp-go-oauth-example")
+		if err != nil {
+			slog.Error("Failed to register client", "err", err)
+			os.Exit(1)
+		}
+
 		// Get the authorization URL
 		authURL, err := oauthHandler.GetAuthorizationURL(context.Background(), state, codeChallenge)
 		if err != nil {
@@ -102,11 +101,11 @@ func main() {
 		}
 
 		// Open the browser to the authorization URL
-		fmt.Printf("Opening browser to: %s\n", authURL)
+		slog.Info("Opening browser to authorization URL", "authURL", authURL)
 		openBrowser(authURL)
 
 		// Wait for the callback
-		fmt.Println("Waiting for authorization callback...")
+		slog.Info("Waiting for authorization callback...")
 		params := <-callbackChan
 
 		// Verify state parameter
@@ -122,14 +121,14 @@ func main() {
 			os.Exit(1)
 		}
 
-		fmt.Println("Exchanging authorization code for token...")
+		slog.Info("Exchanging authorization code for token...")
 		err = oauthHandler.ProcessAuthorizationResponse(context.Background(), code, state, codeVerifier)
 		if err != nil {
 			slog.Error("Failed to process authorization response", "err", err)
 			os.Exit(1)
 		}
 
-		fmt.Println("Authorization successful!")
+		slog.Info("Authorization successful!")
 
 		// Try to initialize again with the token
 		result, err = c.Initialize(context.Background(), mcp.InitializeRequest{
@@ -154,9 +153,9 @@ func main() {
 		os.Exit(1)
 	}
 
-	fmt.Printf("Client initialized successfully! Server: %s %s\n",
-		result.ServerInfo.Name,
-		result.ServerInfo.Version)
+	slog.Info("Client initialized successfully!",
+		"server", result.ServerInfo.Name,
+		"version", result.ServerInfo.Version)
 
 	// Now you can use the client as usual
 	// For example, list tools
@@ -166,9 +165,8 @@ func main() {
 		os.Exit(1)
 	}
 
-	fmt.Println("Available tools:")
 	for _, tool := range tools.Tools {
-		fmt.Printf("- %s\n", tool.Name)
+		slog.Info("Available Tool", "name", tool.Name)
 	}
 }
 
@@ -227,11 +225,11 @@ func openBrowser(url string) {
 	case "darwin":
 		err = exec.Command("open", url).Start()
 	default:
-		err = fmt.Errorf("unsupported platform")
+		err = errors.New("unsupported platform")
 	}
 
 	if err != nil {
 		slog.Error("Failed to open browser", "err", err)
-		fmt.Printf("Please open the following URL in your browser: %s\n", url)
+		slog.Info("Please open the following URL in your browser", "url", url)
 	}
 }
