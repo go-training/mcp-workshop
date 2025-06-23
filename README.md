@@ -17,9 +17,11 @@ This workshop provides a comprehensive guide to building both MCP ([Model Contex
 
 ## MCP Inspector
 
-The MCP Inspector is a developer tool designed for testing and debugging MCP servers. Similar to Postman, it enables you to send requests to MCP servers and view their responses. This tool is invaluable for developers working with MCP, providing a streamlined workflow for server interaction and troubleshooting.
+[The MCP Inspector][01] is a developer tool designed for testing and debugging MCP servers. Similar to Postman, it enables you to send requests to MCP servers and view their responses. This tool is invaluable for developers working with MCP, providing a streamlined workflow for server interaction and troubleshooting.
 
 ![inspector](./images/inspector.png)
+
+[01]: https://github.com/modelcontextprotocol/inspector
 
 ## OAuth in MCP
 
