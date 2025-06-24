@@ -22,7 +22,7 @@
     },
     "default-oauth-server": {
       "type": "http",
-      "url": "http://localhost:8088/mcp"
+      "url": "http://localhost:8081/mcp"
     }
   }
 }

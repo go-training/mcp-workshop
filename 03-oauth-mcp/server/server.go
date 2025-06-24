@@ -376,8 +376,31 @@ func main() {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
-		slog.Info("Token response", "tokenResp", tokenResp)
-		c.JSON(http.StatusOK, tokenResp)
+		slog.Info("Token response", "access ", tokenResp)
+
+		// Fetch user info from GitHub
+		userInfo, userErr := fetchGitHubUser(tokenResp.AccessToken)
+		if userErr != nil {
+			slog.Error("Failed to fetch user info", "error", userErr)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch user info", "details": userErr.Error()})
+			return
+		}
+
+		// Check if scope includes user:email or user, then fetch emails
+		var emails interface{}
+		if tokenResp.Scope != "" && (containsScope(tokenResp.Scope, "user:email") || containsScope(tokenResp.Scope, "user")) {
+			emails, _ = fetchGitHubEmails(tokenResp.AccessToken)
+		}
+
+		// Combine all results
+		result := gin.H{
+			"token": tokenResp,
+			"user":  userInfo,
+		}
+		if emails != nil {
+			result["emails"] = emails
+		}
+		c.JSON(http.StatusOK, result)
 	})
 
 	// Add /register endpoint: echoes back the JSON body
@@ -407,4 +430,72 @@ func main() {
 		slog.Error("Server error", "err", err)
 		os.Exit(1)
 	}
+}
+
+// fetchGitHubUser fetches the authenticated user's profile from GitHub.
+func fetchGitHubUser(accessToken string) (map[string]interface{}, error) {
+	req, err := http.NewRequest("GET", "https://api.github.com/user", nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Authorization", "Bearer "+accessToken)
+	req.Header.Set("Accept", "application/vnd.github+json")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("failed to fetch user info: %s", string(body))
+	}
+	var user map[string]interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&user); err != nil {
+		return nil, err
+	}
+	return user, nil
+}
+
+// fetchGitHubEmails fetches the authenticated user's emails from GitHub.
+func fetchGitHubEmails(accessToken string) (interface{}, error) {
+	req, err := http.NewRequest("GET", "https://api.github.com/user/emails", nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Authorization", "Bearer "+accessToken)
+	req.Header.Set("Accept", "application/vnd.github+json")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("failed to fetch user emails: %s", string(body))
+	}
+	var emails interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&emails); err != nil {
+		return nil, err
+	}
+	return emails, nil
+}
+
+// containsScope checks if a space-separated scope string contains a specific scope.
+func containsScope(scopeStr, target string) bool {
+	for _, s := range splitScopes(scopeStr) {
+		if s == target {
+			return true
+		}
+	}
+	return false
+}
+
+func splitScopes(scopeStr string) []string {
+	var scopes []string
+	for _, s := range bytes.Split([]byte(scopeStr), []byte(" ")) {
+		if len(s) > 0 {
+			scopes = append(scopes, string(s))
+		}
+	}
+	return scopes
 }
