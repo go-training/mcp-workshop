@@ -3,6 +3,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"encoding/json"
@@ -342,17 +343,41 @@ func main() {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "code, client_id, and redirect_uri are required"})
 			return
 		}
-		// Simulate token generation
-		token := "test-access-token"
-		response := map[string]interface{}{
-			"access_token":  token,
-			"token_type":    "bearer",
-			"refresh_token": "test-refresh-token",
-			"scope":         "mcp.read mcp.write",
-			"expires_in":    3600,
-			"expires_at":    time.Now().Add(3600 * time.Second).Format(time.RFC3339),
+
+		tokenEndpoint := "https://github.com/login/oauth/access_token"
+		reqBody := map[string]string{
+			"client_id":     clientID,
+			"client_secret": clientSecret,
+			"code":          code,
+			"redirect_uri":  redirectURI,
 		}
-		c.JSON(http.StatusOK, response)
+		jsonBody, _ := json.Marshal(reqBody)
+		req, err := http.NewRequest("POST", tokenEndpoint, bytes.NewBuffer(jsonBody))
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		req.Header.Set("Accept", "application/json")
+		req.Header.Set("Content-Type", "application/json")
+
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		defer resp.Body.Close()
+		body, _ := io.ReadAll(resp.Body)
+		if resp.StatusCode != http.StatusOK {
+			c.JSON(resp.StatusCode, gin.H{"error": string(body)})
+			return
+		}
+		var tokenResp transport.Token
+		if err := json.Unmarshal(body, &tokenResp); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		slog.Info("Token response", "tokenResp", tokenResp)
+		c.JSON(http.StatusOK, tokenResp)
 	})
 
 	// Add /register endpoint: echoes back the JSON body

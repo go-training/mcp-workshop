@@ -19,6 +19,10 @@
       "headers": {
         "Authorization": "Bearer 1234567890"
       }
+    },
+    "default-oauth-server": {
+      "type": "http",
+      "url": "http://localhost:8088/mcp"
     }
   }
 }
