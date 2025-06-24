@@ -386,21 +386,12 @@ func main() {
 			return
 		}
 
-		// Check if scope includes user:email or user, then fetch emails
-		var emails interface{}
-		if tokenResp.Scope != "" && (containsScope(tokenResp.Scope, "user:email") || containsScope(tokenResp.Scope, "user")) {
-			emails, _ = fetchGitHubEmails(tokenResp.AccessToken)
-		}
+		slog.Info("Token response with user info",
+			"email", userInfo["email"],
+			"login", userInfo["login"],
+		)
 
-		// Combine all results
-		result := gin.H{
-			"token": tokenResp,
-			"user":  userInfo,
-		}
-		if emails != nil {
-			result["emails"] = emails
-		}
-		c.JSON(http.StatusOK, result)
+		c.JSON(http.StatusOK, tokenResp)
 	})
 
 	// Add /register endpoint: echoes back the JSON body
@@ -454,48 +445,4 @@ func fetchGitHubUser(accessToken string) (map[string]interface{}, error) {
 		return nil, err
 	}
 	return user, nil
-}
-
-// fetchGitHubEmails fetches the authenticated user's emails from GitHub.
-func fetchGitHubEmails(accessToken string) (interface{}, error) {
-	req, err := http.NewRequest("GET", "https://api.github.com/user/emails", nil)
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("Authorization", "Bearer "+accessToken)
-	req.Header.Set("Accept", "application/vnd.github+json")
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("failed to fetch user emails: %s", string(body))
-	}
-	var emails interface{}
-	if err := json.NewDecoder(resp.Body).Decode(&emails); err != nil {
-		return nil, err
-	}
-	return emails, nil
-}
-
-// containsScope checks if a space-separated scope string contains a specific scope.
-func containsScope(scopeStr, target string) bool {
-	for _, s := range splitScopes(scopeStr) {
-		if s == target {
-			return true
-		}
-	}
-	return false
-}
-
-func splitScopes(scopeStr string) []string {
-	var scopes []string
-	for _, s := range bytes.Split([]byte(scopeStr), []byte(" ")) {
-		if len(s) > 0 {
-			scopes = append(scopes, string(s))
-		}
-	}
-	return scopes
 }
