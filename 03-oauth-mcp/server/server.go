@@ -3,7 +3,6 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"crypto/rand"
 	"encoding/json"
@@ -235,7 +234,6 @@ func main() {
 	var clientSecret string
 	flag.StringVar(&clientID, "client_id", "", "OAuth 2.0 Client ID")
 	flag.StringVar(&clientSecret, "client_secret", "", "OAuth 2.0 Client Secret")
-	// Use a flag to specify the address to listen on
 	flag.StringVar(&addr, "addr", ":8095", "address to listen on")
 	flag.Parse()
 
@@ -244,9 +242,10 @@ func main() {
 		os.Exit(1)
 	}
 
-	mcpServer := NewMCPServer()
+	// Initialize provider (GitHub for now)
+	provider := &GitHubProvider{}
 
-	// Use only HTTP server (SSE transport removed)
+	mcpServer := NewMCPServer()
 	router := gin.Default()
 
 	// Middleware to check Authorization header
@@ -315,8 +314,8 @@ func main() {
 	})
 
 	router.GET("/authorize", corsMiddleware("Authorization", "Content-Type"), func(c *gin.Context) {
-		clientID := c.Query("client_id")
-		if clientID == "" {
+		clientIDParam := c.Query("client_id")
+		if clientIDParam == "" {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "client_id is required"})
 			return
 		}
@@ -325,61 +324,50 @@ func main() {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "state is required"})
 			return
 		}
-		redirectURL := fmt.Sprintf("https://github.com/login/oauth/authorize?client_id=%s&state=%s", clientID, state)
-		c.Redirect(http.StatusFound, redirectURL)
+		// optional: scopes, redirect_uri
+		redirectURI := c.Query("redirect_uri")
+		scopes := c.Query("scope")
+		if scopes == "" {
+			scopes = "user" // default GitHub
+		}
+		authURL, err := provider.GetAuthorizeURL(clientIDParam, state, redirectURI, scopes)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		c.Redirect(http.StatusFound, authURL)
 	})
 
 	router.POST("/token", corsMiddleware("Authorization", "Content-Type"), func(c *gin.Context) {
 		grantType := c.PostForm("grant_type")
 		code := c.PostForm("code")
-		clientID := c.PostForm("client_id")
+		clientIDParam := c.PostForm("client_id")
 		redirectURI := c.PostForm("redirect_uri")
-		slog.Info("Token request received", "grant_type", grantType, "client_id", clientID, "redirect_uri", redirectURI)
+		slog.Info("Token request received", "grant_type", grantType, "client_id", clientIDParam, "redirect_uri", redirectURI)
 		if grantType != "authorization_code" {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "unsupported grant_type"})
 			return
 		}
-		if code == "" || clientID == "" || redirectURI == "" {
+		if code == "" || clientIDParam == "" || redirectURI == "" {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "code, client_id, and redirect_uri are required"})
 			return
 		}
 
-		tokenEndpoint := "https://github.com/login/oauth/access_token"
-		reqBody := map[string]string{
-			"client_id":     clientID,
-			"client_secret": clientSecret,
-			"code":          code,
-			"redirect_uri":  redirectURI,
-		}
-		jsonBody, _ := json.Marshal(reqBody)
-		req, err := http.NewRequest("POST", tokenEndpoint, bytes.NewBuffer(jsonBody))
+		token, err := provider.ExchangeToken(clientIDParam, clientSecret, code, redirectURI)
 		if err != nil {
+			slog.Error("Token exchange failed", "error", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
-		req.Header.Set("Accept", "application/json")
-		req.Header.Set("Content-Type", "application/json")
+		if token == nil {
+			slog.Error("Token exchange returned nil token without error")
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "empty token response"})
+			return
+		}
 
-		resp, err := http.DefaultClient.Do(req)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
-		}
-		defer resp.Body.Close()
-		body, _ := io.ReadAll(resp.Body)
-		if resp.StatusCode != http.StatusOK {
-			c.JSON(resp.StatusCode, gin.H{"error": string(body)})
-			return
-		}
-		var tokenResp transport.Token
-		if err := json.Unmarshal(body, &tokenResp); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
-		}
-		slog.Info("Token response", "access ", tokenResp)
+		accessToken := token.AccessToken
 
-		// Fetch user info from GitHub
-		userInfo, userErr := fetchGitHubUser(tokenResp.AccessToken)
+		userInfo, userErr := provider.FetchUserInfo(accessToken)
 		if userErr != nil {
 			slog.Error("Failed to fetch user info", "error", userErr)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch user info", "details": userErr.Error()})
@@ -391,7 +379,7 @@ func main() {
 			"login", userInfo["login"],
 		)
 
-		c.JSON(http.StatusOK, tokenResp)
+		c.JSON(http.StatusOK, token)
 	})
 
 	// Add /register endpoint: echoes back the JSON body
