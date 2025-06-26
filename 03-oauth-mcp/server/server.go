@@ -410,27 +410,3 @@ func main() {
 		os.Exit(1)
 	}
 }
-
-// fetchGitHubUser fetches the authenticated user's profile from GitHub.
-func fetchGitHubUser(accessToken string) (map[string]interface{}, error) {
-	req, err := http.NewRequest("GET", "https://api.github.com/user", nil)
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("Authorization", "Bearer "+accessToken)
-	req.Header.Set("Accept", "application/vnd.github+json")
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("failed to fetch user info: %s", string(body))
-	}
-	var user map[string]interface{}
-	if err := json.NewDecoder(resp.Body).Decode(&user); err != nil {
-		return nil, err
-	}
-	return user, nil
-}
