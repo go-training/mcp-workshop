@@ -309,7 +309,7 @@ func main() {
 			ResponseTypesSupported:            []string{"code"},
 			GrantTypesSupported:               []string{"authorization_code", "client_credentials", "refresh_token"},
 			TokenEndpointAuthMethodsSupported: []string{"client_secret_basic", "client_secret_post"},
-			// CodeChallengeMethodsSupported:     []string{"S256"}, // for inspector
+			CodeChallengeMethodsSupported:     []string{"S256"}, // for inspector
 		}
 		c.JSON(http.StatusOK, metadata)
 	})

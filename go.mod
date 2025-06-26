@@ -40,3 +40,5 @@ require (
 	google.golang.org/protobuf v1.36.6 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
+
+replace github.com/mark3labs/mcp-go => github.com/appleboy/mcp-go v0.0.0-20250626143456-866f29c5bee9
