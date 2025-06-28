@@ -23,32 +23,100 @@ Connecting directly to several MCP resource servers can quickly become **complex
 
 ## Architecture
 
-This diagram shows how MCP Proxy sits between the client and multiple resource servers:
+The following diagram illustrates how the MCP Proxy serves as a bridge between clients and multiple MCP resource servers:
 
 ```mermaid
-flowchart TD
-    subgraph Clients
-      UserClient[Client App<br>(HTTP/SSE)]
+graph TD
+    %% Client Layer
+    subgraph Clients["🖥️ Client Layer"]
+        Claude["Claude Desktop"]
+        API["API Client"]
+        Other["Other MCP Clients"]
     end
 
-    subgraph MCP_Proxy["MCP Proxy Server"]
-      Proxy[Proxy<br>(Aggregates & Streams Data)]
+    %% MCP Proxy Core
+    subgraph Proxy["🔄 MCP Proxy Server"]
+        HTTP["HTTP Server<br/>Listen: {addr}<br/>Base URL: {baseURL}"]
+
+        subgraph Core["Core Components"]
+            SSE["SSE Support<br/>Server-Sent Events<br/>Real-time Updates"]
+            Aggregator["Tool Aggregator<br/>Aggregates Multiple Resource Servers"]
+            Config["Config Management<br/>• JSON Config<br/>• Tool Filtering (allow/block)<br/>• Auth Token Management"]
+            ConnMgr["Connection Manager<br/>• stdio Transport<br/>• SSE Transport<br/>• Streamable HTTP Transport"]
+            Router["Router<br/>/{clientName}/sse"]
+        end
     end
 
-    subgraph Backends["MCP Resource Servers"]
-      StdioMCP1[Resource Server A<br/>(stdio)]
-      SSEMCP2[Resource Server B<br/>(SSE)]
-      HttpMCP3[Resource Server C<br/>(HTTP/streamable-http)]
+    %% MCP Resource Server Layer
+    subgraph Servers["⚙️ MCP Resource Servers"]
+        subgraph StdIO["stdio Servers"]
+            StdIOCmd["CLI Tools<br/>Subprocess Execution<br/>npx, uvx Supported"]
+        end
+
+        subgraph SSEServer["SSE Servers"]
+            SSEUrl["Server-Sent Events<br/>URL Config<br/>HTTP Headers"]
+        end
+
+        subgraph HTTPStream["HTTP Streaming Servers"]
+            HTTPUrl["streamable-http<br/>URL + Timeout Config<br/>Custom Headers"]
+        end
+
+        subgraph Tools["Tools & Capabilities"]
+            FileOp["File Operations"]
+            APICall["API Calls"]
+            DBQuery["Database Queries"]
+            Custom["Custom Tools"]
+        end
     end
 
-    UserClient -->|Single Connection| Proxy
-    Proxy -->|Fan-out| StdioMCP1
-    Proxy --> SSEMCP2
-    Proxy --> HttpMCP3
-    StdioMCP1 -.->|Stream Events| Proxy
-    SSEMCP2 -.-> Proxy
-    HttpMCP3 -.-> Proxy
-    Proxy -->|Streams Updates| UserClient
+    %% Connections
+    Claude -->|"HTTP Request\n/{clientName}/sse"| HTTP
+    API -->|"HTTP Request\n/{clientName}/sse"| HTTP
+    Other -->|"HTTP Request\n/{clientName}/sse"| HTTP
+
+    HTTP --> Router
+    Router --> SSE
+    Router --> Aggregator
+
+    Config -.-> ConnMgr
+    ConnMgr --> StdIOCmd
+    ConnMgr --> SSEUrl
+    ConnMgr --> HTTPUrl
+
+    Aggregator --> Tools
+
+    %% Authentication Flow
+    HTTP -->|Validate Auth Tokens| Config
+
+    %% Response Flow
+    StdIOCmd -.->|Tool Response| Aggregator
+    SSEUrl -.->|Tool Response| Aggregator
+    HTTPUrl -.->|Tool Response| Aggregator
+
+    Aggregator -.->|Aggregated Response| SSE
+    SSE -.->|Unified Response| HTTP
+    HTTP -.->|JSON Response| Clients
+
+    %% Config File
+    ConfigFile["📄 config.json<br/>• Server Configs<br/>• Transport Types<br/>• Tool Filtering Rules<br/>• Auth Tokens"]
+    ConfigFile -.-> Config
+
+    %% Docker Deployment
+    Docker["🐳 Docker Container<br/>ghcr.io/tbxark/mcp-proxy<br/>Supports npx, uvx"]
+    Docker -.-> Proxy
+
+    %% Styles
+    classDef clientClass fill:#2196F3,stroke:#1976D2,stroke-width:2px,color:white
+    classDef proxyClass fill:#4CAF50,stroke:#45a049,stroke-width:2px,color:white
+    classDef serverClass fill:#FF9800,stroke:#F57C00,stroke-width:2px,color:white
+    classDef configClass fill:#9C27B0,stroke:#7B1FA2,stroke-width:2px,color:white
+    classDef dockerClass fill:#00BCD4,stroke:#0097A7,stroke-width:2px,color:white
+
+    class Claude,API,Other clientClass
+    class HTTP,SSE,Aggregator,Config,ConnMgr,Router proxyClass
+    class StdIOCmd,SSEUrl,HTTPUrl,FileOp,APICall,DBQuery,Custom serverClass
+    class ConfigFile configClass
+    class Docker dockerClass
 ```
 
 *Clients only connect to the MCP Proxy, which forwards requests and collects data from all backend MCP Resource Servers.*
