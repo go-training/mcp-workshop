@@ -3,6 +3,8 @@ package operation
 import (
 	"github.com/go-training/mcp-workshop/pkg/operation/caculator"
 	"github.com/go-training/mcp-workshop/pkg/operation/echo"
+	"github.com/go-training/mcp-workshop/pkg/operation/token"
+
 	"github.com/mark3labs/mcp-go/server"
 )
 
@@ -16,6 +18,7 @@ This function creates a Tool struct, registers echo and calculator tools as read
 */
 func RegisterTool(s *server.MCPServer) {
 	tool := &Tool{}
+
 	tool.RegisterRead(server.ServerTool{
 		Tool:    echo.EchoMessageTool,
 		Handler: echo.HandleEchoMessageTool,
@@ -23,6 +26,15 @@ func RegisterTool(s *server.MCPServer) {
 	tool.RegisterWrite(server.ServerTool{
 		Tool:    caculator.AddNumbersTool,
 		Handler: caculator.HandleAddNumbersTool,
+	})
+
+	tool.RegisterRead(server.ServerTool{
+		Tool:    token.MakeAuthenticatedRequestTool,
+		Handler: token.HandleMakeAuthenticatedRequestTool,
+	})
+	tool.RegisterRead(server.ServerTool{
+		Tool:    token.ShowAuthTokenTool,
+		Handler: token.HandleShowAuthTokenTool,
 	})
 
 	s.AddTools(tool.Tools()...)
