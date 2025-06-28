@@ -11,10 +11,11 @@ import (
 	"os"
 	"time"
 
-	"github.com/appleboy/graceful"
 	"github.com/go-training/mcp-workshop/pkg/logger"
 	"github.com/go-training/mcp-workshop/pkg/operation"
 
+	"github.com/appleboy/graceful"
+	ginSlog "github.com/gin-contrib/slog"
 	"github.com/gin-gonic/gin"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
@@ -121,6 +122,11 @@ func main() {
 		// Create a Gin router
 		router := gin.New()
 		router.Use(gin.Recovery()) // Use Gin's recovery middleware
+		router.Use(ginSlog.SetLogger(
+			ginSlog.WithLogger(func(_ *gin.Context, _ *slog.Logger) *slog.Logger {
+				return l
+			}), // Use the logger from the logger package
+		)) // Use Gin's slog logger for structured logging
 
 		// Handler to ensure context propagation from Gin to MCP server handler
 		withGinContext := func(h http.Handler) gin.HandlerFunc {

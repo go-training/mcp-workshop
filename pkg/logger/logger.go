@@ -31,7 +31,7 @@ func (h *callerHandler) Handle(ctx context.Context, r slog.Record) error {
 	caller := ""
 	if ok {
 		// Always show only the last 3 segments of the file path for readability
-		relPath := trimPathDepth(file, 3)
+		relPath := trimPathDepth(file, 2)
 		caller = fmt.Sprintf("%s:%d", relPath, line)
 	} else {
 		caller = "unknown"
