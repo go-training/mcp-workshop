@@ -78,7 +78,7 @@ func HandleMakeAuthenticatedRequestTool(
 		return nil, fmt.Errorf("missing message")
 	}
 	token, err := core.TokenFromContext(ctx)
-	if err != nil {
+	if err != nil || token == "" {
 		logger.Error("Missing token", "error", err)
 		return nil, fmt.Errorf("missing token: %v", err)
 	}
