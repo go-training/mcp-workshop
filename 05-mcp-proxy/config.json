@@ -1,0 +1,28 @@
+{
+  "mcpProxy": {
+    "baseURL": "http://localhost:9090",
+    "addr": ":9090",
+    "name": "MCP Proxy",
+    "version": "1.0.0",
+    "type": "streamable-http",
+    "options": {
+      "panicIfInvalid": false,
+      "logEnabled": true,
+      "authTokens": []
+    }
+  },
+  "mcpServers": {
+    "server01": {
+      "url": "http://localhost:8081/mcp",
+      "transportType": "streamable-http"
+    },
+    "server02": {
+      "url": "http://localhost:8082/mcp",
+      "transportType": "streamable-http"
+    },
+    "server03": {
+      "url": "http://localhost:8083/mcp",
+      "transportType": "streamable-http"
+    }
+  }
+}
