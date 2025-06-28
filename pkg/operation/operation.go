@@ -9,14 +9,14 @@ import (
 )
 
 /*
-RegisterTool registers custom tools to the specified MCPServer instance.
+RegisterCommonTool registers general (non-authentication) tools to the specified MCPServer instance.
 
 Parameters:
   - s: Pointer to the MCPServer instance where the tools will be registered.
 
-This function creates a Tool struct, registers echo and calculator tools as read and write operations respectively, and adds all registered tools to the MCPServer.
+This function registers echo and calculator tools to the MCPServer.
 */
-func RegisterTool(s *server.MCPServer) {
+func RegisterCommonTool(s *server.MCPServer) {
 	tool := &Tool{}
 
 	tool.RegisterRead(server.ServerTool{
@@ -27,6 +27,20 @@ func RegisterTool(s *server.MCPServer) {
 		Tool:    caculator.AddNumbersTool,
 		Handler: caculator.HandleAddNumbersTool,
 	})
+
+	s.AddTools(tool.Tools()...)
+}
+
+/*
+RegisterAuthTool registers authentication-related tools to the specified MCPServer instance.
+
+Parameters:
+  - s: Pointer to the MCPServer instance where the tools will be registered.
+
+This function registers token tools (authenticated request, show token) to the MCPServer.
+*/
+func RegisterAuthTool(s *server.MCPServer) {
+	tool := &Tool{}
 
 	tool.RegisterRead(server.ServerTool{
 		Tool:    token.MakeAuthenticatedRequestTool,

@@ -31,7 +31,7 @@ func NewMCPServer() *MCPServer {
 	)
 
 	// Register Tool
-	operation.RegisterTool(mcpServer)
+	operation.RegisterCommonTool(mcpServer)
 
 	return &MCPServer{
 		server: mcpServer,

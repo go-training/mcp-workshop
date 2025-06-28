@@ -181,7 +181,7 @@ func NewMCPServer() *MCPServer {
 	)
 
 	// Register Tool
-	operation.RegisterTool(mcpServer)
+	operation.RegisterAuthTool(mcpServer)
 
 	mcpServer.AddTool(
 		mcp.NewTool("make_authenticated_request",

@@ -37,7 +37,7 @@ func NewMCPServer() *MCPServer {
 	)
 
 	// Register Tool
-	operation.RegisterTool(mcpServer)
+	operation.RegisterAuthTool(mcpServer)
 
 	return &MCPServer{
 		server: mcpServer,
