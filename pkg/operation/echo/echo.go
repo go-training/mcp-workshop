@@ -8,34 +8,7 @@ import (
 )
 
 var EchoMessageTool = mcp.NewTool("echo_message",
-	mcp.WithDescription(`Echo Message Tool
-
-Description:
-  Returns the input message as a response, prefixed with "Echo: ". This tool is useful for testing connectivity, debugging, or verifying tool integration.
-
-Input Parameters:
-  - message (string, required): The message to be echoed back in the response.
-    Constraints: Must be a non-empty string. Recommended max length: 500 characters.
-
-Output:
-  - Returns a text result in the format: "Echo: <message>"
-
-Example Usage:
-  Request:
-    {
-      "message": "Hello, world!"
-    }
-  Response:
-    "Echo: Hello, world!"
-
-Error Conditions:
-  - If the "message" parameter is missing or not a string, an error is returned.
-  - If the message exceeds the allowed length or is empty, an error may be returned.
-
-Use Cases:
-  - Testing tool invocation and argument passing.
-  - Verifying server responsiveness.
-  - Demonstrating basic tool structure in MCP.`), // Tool description
+	mcp.WithDescription("Returns the input message prefixed with 'Echo: '. Useful for testing integration and server responsiveness."), // Tool description
 	mcp.WithString("message", // Tool argument name
 		mcp.Description("The message to echo back in the response."), // Argument description
 		mcp.Required(), // Argument is required
