@@ -68,17 +68,17 @@ The OAuth implementation uses PKCE (Proof Key for Code Exchange) for enhanced se
 
 ```mermaid
 flowchart TD
-    A[Start OAuth Flow] --> B[GenerateRandomString(length)]
+    A[Start OAuth Flow] --> B[GenerateRandomString]
     
     B --> B1[Create byte array]
-    B1 --> B2[crypto/rand.Read fills random bytes]
-    B2 --> B3{Random generation successful?}
+    B1 --> B2[Fill with random bytes]
+    B2 --> B3{Generation successful?}
     B3 -->|No| B4[Return error]
-    B3 -->|Yes| B5[Base64URL encode and truncate to length]
+    B3 -->|Yes| B5[Base64URL encode and truncate]
     B5 --> B6[Return random string]
 
     A --> C[GenerateCodeVerifier]
-    C --> C1[Call GenerateRandomString(64)]
+    C --> C1[Call GenerateRandomString 64]
     C1 --> C2[Return 64-char code_verifier]
 
     C2 --> D[GenerateCodeChallenge]
@@ -87,7 +87,7 @@ flowchart TD
     D2 --> D3[Return code_challenge]
 
     A --> E[GenerateState]
-    E --> E1[Call GenerateRandomString(32)]
+    E --> E1[Call GenerateRandomString 32]
     E1 --> E2[Return 32-char anti-CSRF state]
 
     A --> F[ValidateRedirectURI]
@@ -98,7 +98,7 @@ flowchart TD
     F4 -->|No| F5[Return error: Invalid URI]
     F4 -->|Yes| F6{Scheme is HTTP?}
     
-    F6 -->|Yes| F7{Hostname is localhost<br/>or 127.0.0.1?}
+    F6 -->|Yes| F7{Hostname is localhost or 127.0.0.1?}
     F7 -->|Yes| F8[Validation passed]
     F7 -->|No| F9[Return error: HTTP must use localhost]
     
