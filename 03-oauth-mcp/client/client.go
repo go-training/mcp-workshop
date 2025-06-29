@@ -159,7 +159,13 @@ func main() {
 
 	// Now you can use the client as usual
 	// For example, list tools
-	tools, err := c.ListTools(context.Background(), mcp.ListToolsRequest{})
+	tools, err := c.ListTools(context.Background(), mcp.ListToolsRequest{
+		PaginatedRequest: mcp.PaginatedRequest{
+			Params: mcp.PaginatedParams{
+				Cursor: "",
+			},
+		},
+	})
 	if err != nil {
 		slog.Error("Failed to list tools", "err", err)
 		os.Exit(1)
