@@ -170,6 +170,21 @@ flowchart TD
 
 ---
 
+## How it Works
+
+1. The client attempts to initialize a connection to the MCP server
+2. If the server requires OAuth authentication, it will return a 401 Unauthorized response
+3. The client detects this and starts the OAuth flow:
+   - Generates PKCE code verifier and challenge
+   - Generates a state parameter for security
+   - Opens a browser to the authorization URL
+   - Starts a local server to handle the callback
+4. The user authorizes the application in their browser
+5. The authorization server redirects back to the local callback server
+6. The client exchanges the authorization code for an access token
+7. The client retries the initialization with the access token
+8. The client can now make authenticated requests to the MCP server
+
 ## References
 
 - [MCP Documentation](https://mark3.ai/docs/mcp/)
