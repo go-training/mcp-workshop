@@ -6,11 +6,68 @@ This workshop provides a comprehensive guide to building both MCP ([Model Contex
 
 - [mcp-workshop](#mcp-workshop)
   - [Table of Contents](#table-of-contents)
+  - [Using .vscode/mcp.json](#using-vscodemcpjson)
+    - [Structure](#structure)
+      - [Example (`.vscode/mcp.json`):](#example-vscodemcpjson)
+    - [Usage](#usage)
   - [MCP Inspector](#mcp-inspector)
   - [OAuth in MCP](#oauth-in-mcp)
   - [MCP Vulnerabilities](#mcp-vulnerabilities)
 
 ![cover](./images/cover.png)
+
+## Using .vscode/mcp.json
+
+The `.vscode/mcp.json` file provides configuration for MCP-related development within VS Code, allowing you to register servers and supply required credentials (such as API keys) in a unified place. This file enables easy integration and switching between different MCP server endpoints and credential sets.
+
+### Structure
+
+- **inputs**: Prompts the user for required values, such as API keys, when a workspace is opened. For example:
+  - `perplexity-key` – Stores your Perplexity API Key securely as a password input.
+
+- **servers**: Defines known MCP server connections (by name), including protocol, endpoint, and headers if necessary. Examples in the default file:
+  - `default-stdio-server` – Connects to a local MCP server via stdio using the `mcp-server` command.
+  - `default-http-server` – Connects to a remote MCP server over HTTP, passing an authorization header as required.
+  - `default-oauth-server`, `proxy-server-01`, `proxy-server-02` – Additional HTTP(S) servers, with or without custom headers and endpoints.
+
+#### Example (`.vscode/mcp.json`):
+
+```json
+{
+  "inputs": [
+    {
+      "type": "promptString",
+      "id": "perplexity-key",
+      "description": "Perplexity API Key",
+      "password": true
+    }
+  ],
+  "servers": {
+    "default-stdio-server": {
+      "type": "stdio",
+      "command": "mcp-server",
+      "args": ["-t", "stdio"]
+    },
+    "default-http-server": {
+      "type": "http",
+      "url": "http://localhost:8080/mcp",
+      "headers": {
+        "Authorization": "Bearer 1234567890"
+      }
+    }
+    // ... more server entries ...
+  }
+}
+```
+
+### Usage
+
+1. Place your `.vscode/mcp.json` in the root or `.vscode/` directory of your workspace.
+2. Add or modify the `inputs` to include any required user-provided secrets.
+3. Configure the `servers` block with relevant endpoints for each service you want to register. You can specify server type (`stdio` or `http`), commands, arguments, URLs, and headers (such as authentication tokens).
+4. When opening the workspace, VS Code and supported MCP extensions or tools will prompt for required inputs and use these server connections for MCP operations.
+
+For further customization or advanced scenarios, edit the file to register new endpoints or provide different credentials. This centralized configuration streamlines connection management and enhances development efficiency.
 
 [1]: https://modelcontextprotocol.io/introduction
 [2]: https://go.dev
