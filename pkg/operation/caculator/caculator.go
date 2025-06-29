@@ -8,35 +8,7 @@ import (
 )
 
 var AddNumbersTool = mcp.NewTool("add_numbers",
-	mcp.WithDescription(`Add Numbers Tool
-
-Description:
-  Calculates the sum of two numbers. Useful for basic arithmetic operations.
-
-Input Parameters:
-  - num1 (number, required): The first addend
-  - num2 (number, required): The second addend
-
-Output:
-  - Returns: "Sum: <num1 + num2>"
-
-Example Usage:
-  Request:
-    {
-      "num1": 42,
-      "num2": 58
-    }
-  Response:
-    "Sum: 100"
-
-Error Conditions:
-  - If num1 or num2 is missing or has the wrong type, an error is returned.
-
-Use Cases:
-  - Basic arithmetic operations
-  - Summing values in automated workflows
-  - Teaching or testing arithmetic functionality
-`),
+	mcp.WithDescription("Calculates the sum of two numbers."),
 	mcp.WithNumber("num1",
 		mcp.Description("The first number to add"),
 		mcp.Required(),
