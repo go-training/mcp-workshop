@@ -49,7 +49,10 @@ func NewMCPServer() *MCPServer {
 func (s *MCPServer) ServeHTTP() *server.StreamableHTTPServer {
 	return server.NewStreamableHTTPServer(s.server,
 		server.WithHeartbeatInterval(30*time.Second),
-		server.WithHTTPContextFunc(func(ctx context.Context, r *http.Request) context.Context {
+		server.WithHTTPContextFunc(func(
+			ctx context.Context,
+			r *http.Request,
+		) context.Context {
 			ctx = core.AuthFromRequest(ctx, r)
 			return core.WithRequestID(ctx)
 		}),
