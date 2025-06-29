@@ -177,61 +177,63 @@ func main() {
 		c.Redirect(http.StatusFound, authURL)
 	})
 
-	router.POST("/token", corsMiddleware("Authorization", "Content-Type"), func(c *gin.Context) {
-		grantType := c.PostForm("grant_type")
-		code := c.PostForm("code")
-		clientIDParam := c.PostForm("client_id")
-		redirectURI := c.PostForm("redirect_uri")
-		slog.Info("Token request received", "grant_type", grantType, "client_id", clientIDParam, "redirect_uri", redirectURI)
-		if grantType != "authorization_code" {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "unsupported grant_type"})
-			return
-		}
-		if code == "" || clientIDParam == "" || redirectURI == "" {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "code, client_id, and redirect_uri are required"})
-			return
-		}
+	router.POST("/token",
+		corsMiddleware("Authorization", "Content-Type"), func(c *gin.Context) {
+			grantType := c.PostForm("grant_type")
+			code := c.PostForm("code")
+			clientIDParam := c.PostForm("client_id")
+			redirectURI := c.PostForm("redirect_uri")
+			slog.Info("Token request received", "grant_type", grantType, "client_id", clientIDParam, "redirect_uri", redirectURI)
+			if grantType != "authorization_code" {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "unsupported grant_type"})
+				return
+			}
+			if code == "" || clientIDParam == "" || redirectURI == "" {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "code, client_id, and redirect_uri are required"})
+				return
+			}
 
-		token, err := provider.ExchangeToken(clientIDParam, clientSecret, code, redirectURI)
-		if err != nil {
-			slog.Error("Token exchange failed", "error", err)
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
-		}
-		if token == nil {
-			slog.Error("Token exchange returned nil token without error")
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "empty token response"})
-			return
-		}
+			token, err := provider.ExchangeToken(clientIDParam, clientSecret, code, redirectURI)
+			if err != nil {
+				slog.Error("Token exchange failed", "error", err)
+				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+				return
+			}
+			if token == nil {
+				slog.Error("Token exchange returned nil token without error")
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "empty token response"})
+				return
+			}
 
-		accessToken := token.AccessToken
+			accessToken := token.AccessToken
 
-		userInfo, userErr := provider.FetchUserInfo(accessToken)
-		if userErr != nil {
-			slog.Error("Failed to fetch user info", "error", userErr)
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch user info", "details": userErr.Error()})
-			return
-		}
+			userInfo, userErr := provider.FetchUserInfo(accessToken)
+			if userErr != nil {
+				slog.Error("Failed to fetch user info", "error", userErr)
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch user info", "details": userErr.Error()})
+				return
+			}
 
-		slog.Info("Token response with user info",
-			"email", userInfo["email"],
-			"login", userInfo["login"],
-		)
+			slog.Info("Token response with user info",
+				"email", userInfo["email"],
+				"login", userInfo["login"],
+			)
 
-		c.JSON(http.StatusOK, token)
-	})
+			c.JSON(http.StatusOK, token)
+		})
 
 	// Add /register endpoint: echoes back the JSON body
-	router.POST("/register", corsMiddleware("Authorization", "Content-Type"), func(c *gin.Context) {
-		var body map[string]interface{}
-		if err := c.ShouldBindJSON(&body); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-			return
-		}
-		body["client_id"] = clientID
-		body["client_secret"] = clientSecret
-		c.JSON(http.StatusOK, body)
-	})
+	router.POST("/register",
+		corsMiddleware("Authorization", "Content-Type"), func(c *gin.Context) {
+			var body map[string]interface{}
+			if err := c.ShouldBindJSON(&body); err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+				return
+			}
+			body["client_id"] = clientID
+			body["client_secret"] = clientSecret
+			c.JSON(http.StatusOK, body)
+		})
 
 	// Output server startup message
 	slog.Info("MCP HTTP server listening", "addr", addr)
