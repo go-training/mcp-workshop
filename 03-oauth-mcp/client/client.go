@@ -72,6 +72,12 @@ func main() {
 		server := startCallbackServer(callbackChan)
 		defer server.Close()
 
+		err = oauthHandler.RegisterClient(context.Background(), "mcp-go-oauth-example")
+		if err != nil {
+			slog.Error("Failed to register client", "err", err)
+			os.Exit(1)
+		}
+
 		// Generate PKCE code verifier and challenge
 		codeVerifier, err := client.GenerateCodeVerifier()
 		if err != nil {
@@ -84,12 +90,6 @@ func main() {
 		state, err := client.GenerateState()
 		if err != nil {
 			slog.Error("Failed to generate state", "err", err)
-			os.Exit(1)
-		}
-
-		err = oauthHandler.RegisterClient(context.Background(), "mcp-go-oauth-example")
-		if err != nil {
-			slog.Error("Failed to register client", "err", err)
 			os.Exit(1)
 		}
 
@@ -159,20 +159,22 @@ func main() {
 
 	// Now you can use the client as usual
 	// For example, list tools
-	tools, err := c.ListTools(context.Background(), mcp.ListToolsRequest{
-		PaginatedRequest: mcp.PaginatedRequest{
-			Params: mcp.PaginatedParams{
-				Cursor: "",
+	if result.Capabilities.Tools != nil {
+		tools, err := c.ListTools(context.Background(), mcp.ListToolsRequest{
+			PaginatedRequest: mcp.PaginatedRequest{
+				Params: mcp.PaginatedParams{
+					Cursor: "",
+				},
 			},
-		},
-	})
-	if err != nil {
-		slog.Error("Failed to list tools", "err", err)
-		os.Exit(1)
-	}
+		})
+		if err != nil {
+			slog.Error("Failed to list tools", "err", err)
+			os.Exit(1)
+		}
 
-	for _, tool := range tools.Tools {
-		slog.Info("Available Tool", "name", tool.Name)
+		for _, tool := range tools.Tools {
+			slog.Info("Available Tool", "name", tool.Name)
+		}
 	}
 }
 
