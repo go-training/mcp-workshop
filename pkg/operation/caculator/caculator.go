@@ -19,7 +19,10 @@ var AddNumbersTool = mcp.NewTool("add_numbers",
 	),
 )
 
-func HandleAddNumbersTool(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+func HandleAddNumbersTool(
+	ctx context.Context,
+	req mcp.CallToolRequest,
+) (*mcp.CallToolResult, error) {
 	// Retrieve num1 and num2 arguments and check their types
 	num1Val, ok1 := req.GetArguments()["num1"].(float64)
 	num2Val, ok2 := req.GetArguments()["num2"].(float64)
