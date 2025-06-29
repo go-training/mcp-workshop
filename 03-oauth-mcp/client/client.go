@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"log/slog"
 	"net/http"
@@ -132,11 +133,7 @@ func main() {
 
 		// Try to initialize again with the token
 		result, err = c.Initialize(context.Background(), mcp.InitializeRequest{
-			Params: struct {
-				ProtocolVersion string                 `json:"protocolVersion"`
-				Capabilities    mcp.ClientCapabilities `json:"capabilities"`
-				ClientInfo      mcp.Implementation     `json:"clientInfo"`
-			}{
+			Params: mcp.InitializeParams{
 				ProtocolVersion: mcp.LATEST_PROTOCOL_VERSION,
 				ClientInfo: mcp.Implementation{
 					Name:    "mcp-go-oauth-example",
@@ -174,6 +171,33 @@ func main() {
 
 		for _, tool := range tools.Tools {
 			slog.Info("Available Tool", "name", tool.Name)
+		}
+
+		// Example: Call a tool
+		toolName := "show_auth_token" // Replace with an actual tool name
+		slog.Info("Calling tool", "name", toolName)
+		toolResult, err := c.CallTool(context.Background(), mcp.CallToolRequest{
+			Params: mcp.CallToolParams{
+				Name: toolName,
+				// Add any required parameters for the tool here
+			},
+		})
+		if err != nil {
+			slog.Error("Failed to call tool", "err", err)
+			os.Exit(1)
+		}
+		printToolResult(toolResult)
+	}
+}
+
+// Helper function to print tool results
+func printToolResult(result *mcp.CallToolResult) {
+	for _, content := range result.Content {
+		if textContent, ok := content.(mcp.TextContent); ok {
+			slog.Info("Tool Result", "text", textContent.Text)
+		} else {
+			jsonBytes, _ := json.MarshalIndent(content, "", "  ")
+			slog.Info("Tool Result", "json", string(jsonBytes))
 		}
 	}
 }
