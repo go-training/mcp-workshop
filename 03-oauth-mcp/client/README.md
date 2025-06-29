@@ -19,6 +19,37 @@ This application demonstrates an OAuth 2.0 client that integrates with an MCP-en
 ## OAuth Client Flow
 
 ```mermaid
+sequenceDiagram
+    participant Client as Client Application
+    participant AuthServer as Authorization Server
+    participant ResourceServer as Resource Server
+    participant User as End User
+
+    Note over Client: 1. Prepare PKCE Parameters
+    Client->>Client: GenerateCodeVerifier()<br/>Generate code_verifier (64 chars)
+    Client->>Client: GenerateCodeChallenge(code_verifier)<br/>SHA256 + Base64URL encoding
+    Client->>Client: GenerateState()<br/>Generate anti-CSRF state (32 chars)
+    Client->>Client: ValidateRedirectURI(redirect_uri)<br/>Validate redirect URI security
+
+    Note over Client,AuthServer: 2. Authorization Request
+    Client->>User: Redirect to authorization page<br/>with code_challenge, state
+    User->>AuthServer: User login and authorize
+    AuthServer->>AuthServer: Store code_challenge and state
+    AuthServer->>Client: Redirect back to client<br/>with authorization_code
+
+    Note over Client,AuthServer: 3. Token Exchange
+    Client->>AuthServer: Request access_token<br/>with authorization_code and code_verifier
+    AuthServer->>AuthServer: Verify:<br/>SHA256(code_verifier) == code_challenge
+    AuthServer->>Client: Return access_token
+
+    Note over Client,ResourceServer: 4. Access Protected Resources
+    Client->>ResourceServer: Request resources with access_token
+    ResourceServer->>Client: Return protected resources
+```
+
+### High-Level MCP Client Flow
+
+```mermaid
 flowchart LR
     Start("Start") --> InitClient["Initialize MCP Client"]
     InitClient --"OAuth Required Error"--> BrowserFlow["Launch Browser to Authorization URL"]
@@ -28,6 +59,67 @@ flowchart LR
     ReInit --> MCPAction["Call MCP API / List Tools"]
     InitClient --"No OAuth Required"--> MCPAction
 ```
+
+---
+
+## PKCE Implementation Details
+
+The OAuth implementation uses PKCE (Proof Key for Code Exchange) for enhanced security. Here's how the cryptographic functions work:
+
+```mermaid
+flowchart TD
+    A[Start OAuth Flow] --> B[GenerateRandomString(length)]
+    
+    B --> B1[Create byte array]
+    B1 --> B2[crypto/rand.Read fills random bytes]
+    B2 --> B3{Random generation successful?}
+    B3 -->|No| B4[Return error]
+    B3 -->|Yes| B5[Base64URL encode and truncate to length]
+    B5 --> B6[Return random string]
+
+    A --> C[GenerateCodeVerifier]
+    C --> C1[Call GenerateRandomString(64)]
+    C1 --> C2[Return 64-char code_verifier]
+
+    C2 --> D[GenerateCodeChallenge]
+    D --> D1[SHA256 hash the code_verifier]
+    D1 --> D2[Base64URL encode the hash]
+    D2 --> D3[Return code_challenge]
+
+    A --> E[GenerateState]
+    E --> E1[Call GenerateRandomString(32)]
+    E1 --> E2[Return 32-char anti-CSRF state]
+
+    A --> F[ValidateRedirectURI]
+    F --> F1{Is URI empty?}
+    F1 -->|Yes| F2[Return error: URI cannot be empty]
+    F1 -->|No| F3[Parse URL]
+    F3 --> F4{Parse successful?}
+    F4 -->|No| F5[Return error: Invalid URI]
+    F4 -->|Yes| F6{Scheme is HTTP?}
+    
+    F6 -->|Yes| F7{Hostname is localhost<br/>or 127.0.0.1?}
+    F7 -->|Yes| F8[Validation passed]
+    F7 -->|No| F9[Return error: HTTP must use localhost]
+    
+    F6 -->|No| F10{Scheme is HTTPS?}
+    F10 -->|Yes| F8
+    F10 -->|No| F11[Return error: Must use HTTP+localhost or HTTPS]
+
+    style B fill:#e1f5fe
+    style C fill:#f3e5f5
+    style D fill:#e8f5e8
+    style E fill:#fff3e0
+    style F fill:#fce4ec
+```
+
+### PKCE Security Benefits
+
+- **Code Verifier**: 64-character random string kept secret by the client
+- **Code Challenge**: SHA256 hash of code verifier, sent to authorization server
+- **State Parameter**: 32-character random string to prevent CSRF attacks
+- **URI Validation**: Ensures redirect URIs use localhost HTTP or any HTTPS
+- **Protection**: Prevents authorization code interception attacks
 
 ---
 
