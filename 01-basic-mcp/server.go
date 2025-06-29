@@ -7,9 +7,10 @@ import (
 	"os"
 	"time"
 
-	"github.com/gin-gonic/gin"
 	"github.com/go-training/mcp-workshop/pkg/logger"
 	"github.com/go-training/mcp-workshop/pkg/operation"
+
+	"github.com/gin-gonic/gin"
 	"github.com/mark3labs/mcp-go/server"
 )
 
