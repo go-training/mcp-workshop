@@ -126,29 +126,31 @@ func main() {
 	router.GET("/mcp", authMiddleware, gin.WrapH(mcpServer.ServeHTTP()))
 	router.DELETE("/mcp", authMiddleware, gin.WrapH(mcpServer.ServeHTTP()))
 
-	router.GET("/.well-known/oauth-protected-resource", corsMiddleware(), func(c *gin.Context) {
-		metadata := &transport.OAuthProtectedResource{
-			AuthorizationServers: []string{"http://localhost" + addr + "/.well-known/oauth-authorization-server"},
-			Resource:             "Example OAuth Protected Resource",
-			ResourceName:         "Example OAuth Protected Resource",
-		}
-		c.JSON(http.StatusOK, metadata)
-	})
+	router.GET("/.well-known/oauth-protected-resource",
+		corsMiddleware(), func(c *gin.Context) {
+			metadata := &transport.OAuthProtectedResource{
+				AuthorizationServers: []string{"http://localhost" + addr + "/.well-known/oauth-authorization-server"},
+				Resource:             "Example OAuth Protected Resource",
+				ResourceName:         "Example OAuth Protected Resource",
+			}
+			c.JSON(http.StatusOK, metadata)
+		})
 
-	router.GET("/.well-known/oauth-authorization-server", corsMiddleware(), func(c *gin.Context) {
-		metadata := transport.AuthServerMetadata{
-			Issuer:                            "http://localhost" + addr,
-			AuthorizationEndpoint:             "http://localhost" + addr + "/authorize",
-			TokenEndpoint:                     "http://localhost" + addr + "/token",
-			RegistrationEndpoint:              "http://localhost" + addr + "/register",
-			ScopesSupported:                   []string{"openid", "profile", "email"},
-			ResponseTypesSupported:            []string{"code"},
-			GrantTypesSupported:               []string{"authorization_code", "client_credentials", "refresh_token"},
-			TokenEndpointAuthMethodsSupported: []string{"client_secret_basic", "client_secret_post"},
-			CodeChallengeMethodsSupported:     []string{"S256"}, // for inspector
-		}
-		c.JSON(http.StatusOK, metadata)
-	})
+	router.GET("/.well-known/oauth-authorization-server",
+		corsMiddleware(), func(c *gin.Context) {
+			metadata := transport.AuthServerMetadata{
+				Issuer:                            "http://localhost" + addr,
+				AuthorizationEndpoint:             "http://localhost" + addr + "/authorize",
+				TokenEndpoint:                     "http://localhost" + addr + "/token",
+				RegistrationEndpoint:              "http://localhost" + addr + "/register",
+				ScopesSupported:                   []string{"openid", "profile", "email"},
+				ResponseTypesSupported:            []string{"code"},
+				GrantTypesSupported:               []string{"authorization_code", "refresh_token"},
+				TokenEndpointAuthMethodsSupported: []string{"none", "client_secret_basic", "client_secret_post"},
+				CodeChallengeMethodsSupported:     []string{"S256"}, // for inspector
+			}
+			c.JSON(http.StatusOK, metadata)
+		})
 
 	router.GET("/authorize", corsMiddleware("Authorization", "Content-Type"), func(c *gin.Context) {
 		clientIDParam := c.Query("client_id")
