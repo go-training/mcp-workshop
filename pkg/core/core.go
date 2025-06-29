@@ -2,11 +2,12 @@ package core
 
 import (
 	"context"
-	"crypto/rand"
 	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
+
+	"github.com/google/uuid"
 )
 
 // AuthKey is a custom context key type for storing the auth token in context.
@@ -17,14 +18,7 @@ type RequestIDKey struct{}
 
 // WithRequestID returns a new context with a generated request ID set.
 func WithRequestID(ctx context.Context) context.Context {
-	b := make([]byte, 8)
-	_, err := rand.Read(b)
-	if err != nil {
-		for i := range b {
-			b[i] = byte(i * 31)
-		}
-	}
-	reqID := fmt.Sprintf("%x", b)
+	reqID := uuid.New().String()
 	return context.WithValue(ctx, RequestIDKey{}, reqID)
 }
 
