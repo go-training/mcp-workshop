@@ -16,7 +16,7 @@ This example demonstrates an MCP (Model Context Protocol) server implementation 
 
 ```bash
 04-observability/
-├── server.go      # Main server implementation with observability features
+├── server.go    # Main server implementation with observability features
 ```
 
 ---
@@ -114,28 +114,28 @@ The custom middleware (`MCPToolHandlerMiddleware`) records:
 
 ```go
 func MCPToolHandlerMiddleware() server.ToolHandlerMiddleware {
-    return func(next server.ToolHandlerFunc) server.ToolHandlerFunc {
-        return func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-            start := time.Now()
-            AddRequestAttributes(
-                ctx,
-                attribute.String("mcp.tool", req.Params.Name),
-                attribute.String("mcp.params", fmt.Sprintf("%+v", req.Params)),
-            )
-            res, err := next(ctx, req)
-            durationMs := float64(time.Since(start).Microseconds()) / 1000.0
-            status, errMsg := extractStatusAndError(res, err)
-            attrs := []attribute.KeyValue{
-                attribute.String("mcp.status", status),
-                attribute.Float64("mcp.duration_ms", durationMs),
-            }
-            if errMsg != "" {
-                attrs = append(attrs, attribute.String("mcp.error", errMsg))
-            }
-            AddRequestAttributes(ctx, attrs...)
-            return res, err
-        }
+  return func(next server.ToolHandlerFunc) server.ToolHandlerFunc {
+    return func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+      start := time.Now()
+      AddRequestAttributes(
+        ctx,
+        attribute.String("mcp.tool", req.Params.Name),
+        attribute.String("mcp.params", fmt.Sprintf("%+v", req.Params)),
+      )
+      res, err := next(ctx, req)
+      durationMs := float64(time.Since(start).Microseconds()) / 1000.0
+      status, errMsg := extractStatusAndError(res, err)
+      attrs := []attribute.KeyValue{
+        attribute.String("mcp.status", status),
+        attribute.Float64("mcp.duration_ms", durationMs),
+      }
+      if errMsg != "" {
+        attrs = append(attrs, attribute.String("mcp.error", errMsg))
+      }
+      AddRequestAttributes(ctx, attrs...)
+      return res, err
     }
+  }
 }
 ```
 
