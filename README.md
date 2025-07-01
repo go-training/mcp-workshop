@@ -8,7 +8,7 @@ This workshop provides a comprehensive guide to building both MCP ([Model Contex
   - [Table of Contents](#table-of-contents)
   - [Using .vscode/mcp.json](#using-vscodemcpjson)
     - [Structure](#structure)
-      - [Example (`.vscode/mcp.json`):](#example-vscodemcpjson)
+      - [Example (`.vscode/mcp.json`)](#example-vscodemcpjson)
     - [Usage](#usage)
   - [MCP Inspector](#mcp-inspector)
   - [OAuth in MCP](#oauth-in-mcp)
@@ -23,14 +23,16 @@ The `.vscode/mcp.json` file provides configuration for MCP-related development w
 ### Structure
 
 - **inputs**: Prompts the user for required values, such as API keys, when a workspace is opened. For example:
+
   - `perplexity-key` – Stores your Perplexity API Key securely as a password input.
 
 - **servers**: Defines known MCP server connections (by name), including protocol, endpoint, and headers if necessary. Examples in the default file:
+
   - `default-stdio-server` – Connects to a local MCP server via stdio using the `mcp-server` command.
   - `default-http-server` – Connects to a remote MCP server over HTTP, passing an authorization header as required.
   - `default-oauth-server`, `proxy-server-01`, `proxy-server-02` – Additional HTTP(S) servers, with or without custom headers and endpoints.
 
-#### Example (`.vscode/mcp.json`):
+#### Example (`.vscode/mcp.json`)
 
 ```json
 {
@@ -95,7 +97,7 @@ For more information on OAuth in MCP, refer to the [Let's fix OAuth in MCP][3] o
 [3]: https://aaronparecki.com/2025/04/03/15/oauth-for-model-context-protocol
 [4]: https://modelcontextprotocol.io/specification/2025-03-26/basic/authorization
 
-The expected flow for obtaining a valid access token via OAuth is depicted in the [MCP Specification](https://modelcontextprotocol.io/specification/draft/basic/authorization#authorization-flow-steps).  For convenience, we've embedded a copy of the authorization flow below.  Please study it carefully as the remainder of this document is written with this flow in mind.
+The expected flow for obtaining a valid access token via OAuth is depicted in the [MCP Specification](https://modelcontextprotocol.io/specification/draft/basic/authorization#authorization-flow-steps). For convenience, we've embedded a copy of the authorization flow below. Please study it carefully as the remainder of this document is written with this flow in mind.
 
 ```mermaid
 sequenceDiagram
