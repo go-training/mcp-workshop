@@ -90,14 +90,6 @@ func main() {
 			slog.Error("Server error", "error", err)
 			os.Exit(1)
 		}
-	case "sse":
-		// If transport is sse, start the MCP server using SSE transport
-		sseServer := server.NewSSEServer(mcpServer.server)
-		slog.Info("MCP SSE server listening", "addr", addr)
-		if err := sseServer.Start(addr); err != nil {
-			slog.Error("Server error", "error", err)
-			os.Exit(1)
-		}
 	case "http":
 		// If transport is http, continue to set up the HTTP server
 		// This will be handled below with Gin
