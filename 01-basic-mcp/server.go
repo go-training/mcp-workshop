@@ -56,7 +56,7 @@ func main() {
 
 	// Parse the command-line flag -addr, default is :8080
 	flag.StringVar(&addr, "addr", ":8080", "address to listen on")
-	flag.StringVar(&transport, "transport", "stdio", "transport type (stdio, sse or http)")
+	flag.StringVar(&transport, "transport", "stdio", "transport type (stdio or http)")
 	flag.StringVar(&transportAlias, "t", "", "alias for -transport")
 	flag.Parse()
 	if transportAlias != "" {
@@ -70,14 +70,6 @@ func main() {
 	case "stdio":
 		// If transport is stdio, start the MCP server using stdio transport
 		if err := server.ServeStdio(mcpServer.server); err != nil {
-			slog.Error("Server error", "err", err)
-			os.Exit(1)
-		}
-	case "sse":
-		// If transport is sse, start the MCP server using SSE transport
-		sseServer := server.NewSSEServer(mcpServer.server)
-		slog.Info("MCP SSE server listening", "addr", addr)
-		if err := sseServer.Start(addr); err != nil {
 			slog.Error("Server error", "err", err)
 			os.Exit(1)
 		}
