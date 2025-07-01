@@ -6,6 +6,12 @@ This workshop provides a comprehensive guide to building both MCP ([Model Contex
 
 - [mcp-workshop](#mcp-workshop)
   - [Table of Contents](#table-of-contents)
+  - [Workshop Modules Overview](#workshop-modules-overview)
+    - [01. Basic MCP Server (`01-basic-mcp`)](#01-basic-mcp-server-01-basic-mcp)
+    - [02. Basic Token Passthrough (`02-basic-token-passthrough`)](#02-basic-token-passthrough-02-basic-token-passthrough)
+    - [03. OAuth MCP Server (`03-oauth-mcp`)](#03-oauth-mcp-server-03-oauth-mcp)
+    - [04. Observability (`04-observability`)](#04-observability-04-observability)
+    - [05. MCP Proxy (`05-mcp-proxy`)](#05-mcp-proxy-05-mcp-proxy)
   - [Using .vscode/mcp.json](#using-vscodemcpjson)
     - [Structure](#structure)
       - [Example (`.vscode/mcp.json`)](#example-vscodemcpjson)
@@ -15,6 +21,42 @@ This workshop provides a comprehensive guide to building both MCP ([Model Contex
   - [MCP Vulnerabilities](#mcp-vulnerabilities)
 
 ![cover](./images/cover.png)
+
+## Workshop Modules Overview
+
+This workshop is organized into a series of hands-on modules, each demonstrating a key aspect of building MCP (Model Context Protocol) servers and related infrastructure in Go. Below is a summary of each module:
+
+### 01. Basic MCP Server ([`01-basic-mcp`](01-basic-mcp/))
+
+A minimal MCP server implementation supporting both stdio and HTTP transports, using the Gin web framework. Demonstrates server setup, tool registration, and best practices for logging and error handling.
+
+- **Key features:** Dual transport (stdio/HTTP), Gin integration, extensible tool registration.
+
+### 02. Basic Token Passthrough ([`02-basic-token-passthrough`](02-basic-token-passthrough/))
+
+Shows how to transparently pass authentication tokens through the context, supporting both HTTP and stdio transports. Tokens are extracted from HTTP headers or environment variables and made available to downstream tools.
+
+- **Key features:** Token passthrough, context injection, example tools for authenticated requests.
+
+### 03. OAuth MCP Server ([`03-oauth-mcp`](03-oauth-mcp/))
+
+Demonstrates an MCP server protected by OAuth 2.0, including endpoints for authorization, token exchange, and resource metadata. Integrates token handling via context and provides sample tools for authenticated API calls.
+
+- **Key features:** OAuth 2.0 flow, protected endpoints, context-based token propagation, example tools.
+
+### 04. Observability ([`04-observability`](04-observability/))
+
+Focuses on observability and tracing in MCP servers. Integrates OpenTelemetry and structured logging to provide detailed traces, metrics, and error reporting for tool invocations and server operations.
+
+- **Key features:** OpenTelemetry tracing, structured logging, observability middleware, error reporting.
+
+### 05. MCP Proxy ([`05-mcp-proxy`](05-mcp-proxy/))
+
+A proxy server that aggregates multiple MCP resource servers behind a single HTTP endpoint. Simplifies client access, supports live data streaming, and centralizes configuration and security.
+
+- **Key features:** Unified access to multiple MCP servers, live streaming (SSE/HTTP), flexible configuration, improved security.
+
+Refer to each module's directory and `README.md` for detailed instructions and code examples.
 
 ## Using .vscode/mcp.json
 
