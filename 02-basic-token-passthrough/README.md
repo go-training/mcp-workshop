@@ -53,7 +53,7 @@ flowchart TD
 ### Build
 
 ```bash
-go build -o mcp-server ./02-basic-token-passthrough
+go build -o mcp-server server.go
 ```
 
 ### Run
@@ -96,23 +96,23 @@ All handled by the MCP server, with token extraction from HTTP headers.
 
 ## Implementation Details
 
-See [`server.go`](02-basic-token-passthrough/server.go:1) for the full source.
+See [`server.go`](./server.go:1) for the full source.
 
 ### Key Components
 
-- [`MCPServer`](02-basic-token-passthrough/server.go:24):  
+- [`MCPServer`](./server.go:24):  
   Wraps the underlying MCP server instance.
 
-- [`NewMCPServer()`](02-basic-token-passthrough/server.go:30):  
+- [`NewMCPServer()`](./server.go:30):  
   Creates and configures the MCP server, registering tools.
 
-- [`ServeHTTP()`](02-basic-token-passthrough/server.go:49):  
+- [`ServeHTTP()`](./server.go:49):  
   Returns a streamable HTTP server that injects the auth token from HTTP requests into the context.
 
-- [`ServeStdio()`](02-basic-token-passthrough/server.go:64):  
+- [`ServeStdio()`](./server.go:64):  
   Starts the MCP server using stdio transport, injecting the auth token from the environment.
 
-- [`main()`](02-basic-token-passthrough/server.go:71):  
+- [`main()`](./server.go:71):  
   Parses CLI flags, selects the transport, and starts the server accordingly.
 
 ### Token Injection Logic
@@ -136,7 +136,7 @@ This line registers tools that can access the authentication token from the cont
 
 ## Extending
 
-To add more tools or customize token handling, modify the registration logic in [`NewMCPServer()`](02-basic-token-passthrough/server.go:30) and the context injection logic in [`ServeHTTP()`](02-basic-token-passthrough/server.go:49) and [`ServeStdio()`](02-basic-token-passthrough/server.go:64).
+To add more tools or customize token handling, modify the registration logic in [`NewMCPServer()`](./server.go:30) and the context injection logic in [`ServeHTTP()`](./server.go:49) and [`ServeStdio()`](./server.go:64).
 
 ## References
 

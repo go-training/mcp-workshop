@@ -58,7 +58,7 @@ The server can be started in one of two modes, controlled by the `-transport` fl
 
 ### Prerequisites
 
-- Go 1.18 or later
+- Go 1.24 or later
 - Required dependencies (see [`go.mod`](../go.mod))
 
 ### Running the Server
