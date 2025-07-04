@@ -22,6 +22,8 @@ This workshop provides a comprehensive guide to building both MCP ([Model Contex
 
 ![cover](./images/cover.png)
 
+📖 [Slides: Building MCP (Model Context Protocol) with Golang](https://speakerdeck.com/appleboy/building-mcp-model-context-protocol-with-golang)
+
 ## Workshop Modules Overview
 
 This workshop is organized into a series of hands-on modules, each demonstrating a key aspect of building MCP (Model Context Protocol) servers and related infrastructure in Go. Below is a summary of each module:
