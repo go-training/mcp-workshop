@@ -2,81 +2,67 @@
 
 English | [繁體中文](README.zh-TW.md) | [簡體中文](README.zh-CN.md)
 
-This workshop provides a comprehensive guide to building both MCP ([Model Context Protocol][1]) servers and clients using the [Go programming language][2]. You will learn how to leverage MCP to streamline your workflow and enhance your development environment.
+![cover](./images/cover.png)
+
+This workshop provides a comprehensive guide to building MCP ([Model Context Protocol][1]) servers and clients using the [Go programming language][2]. You will learn how to leverage MCP to streamline your workflow and enhance your development environment.
+
+📖 [Slides: Building MCP (Model Context Protocol) with Golang](https://speakerdeck.com/appleboy/building-mcp-model-context-protocol-with-golang)
 
 ## Table of Contents
 
 - [mcp-workshop](#mcp-workshop)
   - [Table of Contents](#table-of-contents)
-  - [Workshop Modules Overview](#workshop-modules-overview)
-    - [01. Basic MCP Server (`01-basic-mcp`)](#01-basic-mcp-server-01-basic-mcp)
-    - [02. Basic Token Passthrough (`02-basic-token-passthrough`)](#02-basic-token-passthrough-02-basic-token-passthrough)
-    - [03. OAuth MCP Server (`03-oauth-mcp`)](#03-oauth-mcp-server-03-oauth-mcp)
-    - [04. Observability (`04-observability`)](#04-observability-04-observability)
-    - [05. MCP Proxy (`05-mcp-proxy`)](#05-mcp-proxy-05-mcp-proxy)
-  - [Using .vscode/mcp.json](#using-vscodemcpjson)
+  - [Workshop Modules](#workshop-modules)
+    - [Modules Overview](#modules-overview)
+  - [VS Code MCP Configuration](#vs-code-mcp-configuration)
     - [Structure](#structure)
       - [Example (`.vscode/mcp.json`)](#example-vscodemcpjson)
     - [Usage](#usage)
-  - [MCP Inspector](#mcp-inspector)
-  - [OAuth in MCP](#oauth-in-mcp)
+  - [MCP Inspector Tool](#mcp-inspector-tool)
+  - [OAuth Protocol in MCP](#oauth-protocol-in-mcp)
   - [MCP Vulnerabilities](#mcp-vulnerabilities)
 
 ![cover](./images/cover.png)
 
 📖 [Slides: Building MCP (Model Context Protocol) with Golang](https://speakerdeck.com/appleboy/building-mcp-model-context-protocol-with-golang)
 
-## Workshop Modules Overview
+## Workshop Modules
 
-This workshop is organized into a series of hands-on modules, each demonstrating a key aspect of building MCP (Model Context Protocol) servers and related infrastructure in Go. Below is a summary of each module:
+This workshop consists of hands-on modules, each demonstrating a key aspect of building MCP (Model Context Protocol) servers and related infrastructure in Go.
 
-### 01. Basic MCP Server ([`01-basic-mcp`](01-basic-mcp/))
+### Modules Overview
 
-A minimal MCP server implementation supporting both stdio and HTTP transports, using the Gin web framework. Demonstrates server setup, tool registration, and best practices for logging and error handling.
+- **[01. Basic MCP Server](01-basic-mcp/):**
+  - Minimal MCP server supporting both stdio and HTTP, using Gin. Shows server setup, tool registration, and logging/error handling best practices.
+  - *Key features:* Dual transport (stdio/HTTP), Gin integration, extensible tool registration.
+- **[02. Basic Token Passthrough](02-basic-token-passthrough/):**
+  - Transparent authentication token passthrough for HTTP and stdio. Demonstrates context injection and tool development for authenticated requests.
+  - *Key features:* Token passthrough, context injection, example authenticated tools.
+- **[03. OAuth MCP Server](03-oauth-mcp/):**
+  - MCP server with OAuth 2.0 protection. Example endpoints for auth, tokens, resource metadata; context-based token handling and authenticated API usage.
+  - *Key features:* OAuth 2.0 flow, protected endpoints, context-based token propagation, demo tools.
+- **[04. Observability](04-observability/):**
+  - Observability and tracing for MCP servers using OpenTelemetry and structured logging. Includes metrics, detailed traces, and error reporting.
+  - *Key features:* Tracing, structured logging, observability middleware, error reporting.
+- **[05. MCP Proxy](05-mcp-proxy/):**
+  - Proxy server that aggregates multiple MCP servers behind one endpoint. Supports live streaming and centralizes configuration/security.
+  - *Key features:* Unified access, SSE/HTTP streaming, flexible config, improved security.
 
-- **Key features:** Dual transport (stdio/HTTP), Gin integration, extensible tool registration.
+Refer to each module’s directory and `README.md` for detailed instructions and code examples
 
-### 02. Basic Token Passthrough ([`02-basic-token-passthrough`](02-basic-token-passthrough/))
+## VS Code MCP Configuration
 
-Shows how to transparently pass authentication tokens through the context, supporting both HTTP and stdio transports. Tokens are extracted from HTTP headers or environment variables and made available to downstream tools.
-
-- **Key features:** Token passthrough, context injection, example tools for authenticated requests.
-
-### 03. OAuth MCP Server ([`03-oauth-mcp`](03-oauth-mcp/))
-
-Demonstrates an MCP server protected by OAuth 2.0, including endpoints for authorization, token exchange, and resource metadata. Integrates token handling via context and provides sample tools for authenticated API calls.
-
-- **Key features:** OAuth 2.0 flow, protected endpoints, context-based token propagation, example tools.
-
-### 04. Observability ([`04-observability`](04-observability/))
-
-Focuses on observability and tracing in MCP servers. Integrates OpenTelemetry and structured logging to provide detailed traces, metrics, and error reporting for tool invocations and server operations.
-
-- **Key features:** OpenTelemetry tracing, structured logging, observability middleware, error reporting.
-
-### 05. MCP Proxy ([`05-mcp-proxy`](05-mcp-proxy/))
-
-A proxy server that aggregates multiple MCP resource servers behind a single HTTP endpoint. Simplifies client access, supports live data streaming, and centralizes configuration and security.
-
-- **Key features:** Unified access to multiple MCP servers, live streaming (SSE/HTTP), flexible configuration, improved security.
-
-Refer to each module's directory and `README.md` for detailed instructions and code examples.
-
-## Using .vscode/mcp.json
-
-The `.vscode/mcp.json` file provides configuration for MCP-related development within VS Code, allowing you to register servers and supply required credentials (such as API keys) in a unified place. This file enables easy integration and switching between different MCP server endpoints and credential sets.
+The `.vscode/mcp.json` file configures MCP-related development in VS Code, allowing you to register servers and store required credentials (such as API keys) in a single place. This enables easy integration and switching between different MCP endpoints and credential sets.
 
 ### Structure
 
-- **inputs**: Prompts the user for required values, such as API keys, when a workspace is opened. For example:
-
-  - `perplexity-key` – Stores your Perplexity API Key securely as a password input.
-
-- **servers**: Defines known MCP server connections (by name), including protocol, endpoint, and headers if necessary. Examples in the default file:
-
-  - `default-stdio-server` – Connects to a local MCP server via stdio using the `mcp-server` command.
-  - `default-http-server` – Connects to a remote MCP server over HTTP, passing an authorization header as required.
-  - `default-oauth-server`, `proxy-server-01`, `proxy-server-02` – Additional HTTP(S) servers, with or without custom headers and endpoints.
+- **inputs**: Prompt the user for required values (e.g., API keys) when the workspace is opened.
+  - Example: `perplexity-key` – stores your Perplexity API Key as a password input.
+- **servers**: Define named MCP server connections, including protocol, endpoint, and optional headers.
+  - Examples:
+    - `default-stdio-server`: Connects to a local MCP server using stdio via `mcp-server`.
+    - `default-http-server`: Connects to a remote MCP server over HTTP, using an authorization header.
+    - `default-oauth-server`, `proxy-server-01`, `proxy-server-02`: Additional HTTP(S) endpoints, with or without headers.
 
 #### Example (`.vscode/mcp.json`)
 
@@ -110,40 +96,43 @@ The `.vscode/mcp.json` file provides configuration for MCP-related development w
 
 ### Usage
 
-1. Place your `.vscode/mcp.json` in the root or `.vscode/` directory of your workspace.
-2. Add or modify the `inputs` to include any required user-provided secrets.
-3. Configure the `servers` block with relevant endpoints for each service you want to register. You can specify server type (`stdio` or `http`), commands, arguments, URLs, and headers (such as authentication tokens).
-4. When opening the workspace, VS Code and supported MCP extensions or tools will prompt for required inputs and use these server connections for MCP operations.
+1. Place `.vscode/mcp.json` in the root or `.vscode/` directory of your workspace.
+2. Add/modify `inputs` for required user secrets.
+3. Configure `servers` with endpoints for each service you want to register (specify type, command, URL, and headers as needed).
+4. On opening the workspace, VS Code and supported MCP tools will prompt for the required inputs and use the server connections for MCP operations.
 
-For further customization or advanced scenarios, edit the file to register new endpoints or provide different credentials. This centralized configuration streamlines connection management and enhances development efficiency.
+For further customization or advanced usage, edit the file to add endpoints or credentials. Centralized configuration streamlines connection management and development.
 
 [1]: https://modelcontextprotocol.io/introduction
 [2]: https://go.dev
 
-## MCP Inspector
+## MCP Inspector Tool
 
-[The MCP Inspector][01] is a developer tool designed for testing and debugging MCP servers. Similar to Postman, it enables you to send requests to MCP servers and view their responses. This tool is invaluable for developers working with MCP, providing a streamlined workflow for server interaction and troubleshooting.
+[The MCP Inspector][01] is a developer tool (similar to Postman) for testing and debugging MCP servers. Use it to send requests and view responses from MCP endpoints—ideal for streamlining development and troubleshooting.
 
 ![inspector](./images/inspector.png)
 
 [01]: https://github.com/modelcontextprotocol/inspector
 
-## OAuth in MCP
+## OAuth Protocol in MCP
 
-The following diagrams illustrate the OAuth flow within MCP, including the sequence of communication between each role.
+The following diagrams illustrate the OAuth flow within MCP, detailing the sequence of communication between roles.
 
 ![oauth](./images/oauth-flow-01.png)
 
-Sequence diagram showing communication with each role separately.
+*Sequence diagram showing communication with each role separately:*
 
 ![oauth-sequence](./images/oauth-flow-02.png)
 
-For more information on OAuth in MCP, refer to the [Let's fix OAuth in MCP][3] or the [MCP Authorization][4] documentation.
+For more information:
+
+- [Let's fix OAuth in MCP][3]
+- [MCP Authorization][4]
 
 [3]: https://aaronparecki.com/2025/04/03/15/oauth-for-model-context-protocol
 [4]: https://modelcontextprotocol.io/specification/2025-03-26/basic/authorization
 
-The expected flow for obtaining a valid access token via OAuth is depicted in the [MCP Specification](https://modelcontextprotocol.io/specification/draft/basic/authorization#authorization-flow-steps). For convenience, we've embedded a copy of the authorization flow below. Please study it carefully as the remainder of this document is written with this flow in mind.
+The full OAuth access token flow is depicted in the [MCP Specification](https://modelcontextprotocol.io/specification/draft/basic/authorization#authorization-flow-steps). A simplified sequence:
 
 ```mermaid
 sequenceDiagram
@@ -182,22 +171,21 @@ sequenceDiagram
     Note over C,M: MCP communication continues with valid token
 ```
 
-> [!NOTE]
-> Dynamic Client Registration is NOT supported by Remote MCP Server at this time.
+> **Note:** Dynamic Client Registration is NOT supported by Remote MCP Server at this time.
 
 ## MCP Vulnerabilities
 
-The following are some known vulnerabilities in MCP implementations:
+Some known vulnerabilities in MCP implementations:
 
 ![vulnerabilities](./images/vulnerabilities.gif)
 
-- Command Injection (Impact: Moderate 🟡)
-- Tool Poisoning (Impact: Severe 🔴)
-- Open Connections via SSE (Impact: Moderate 🟠)
-- Privilege Escalation (Impact: Severe 🔴)
-- Persistent Context Misuse (Impact: Low, but risky 🟡)
-- Server Data Takeover/Spoofing (Impact: Severe 🔴)
+- **Command Injection** (Impact: Moderate 🟡)
+- **Tool Poisoning** (Impact: Severe 🔴)
+- **Open Connections via SSE** (Impact: Moderate 🟠)
+- **Privilege Escalation** (Impact: Severe 🔴)
+- **Persistent Context Misuse** (Impact: Low, but risky 🟡)
+- **Server Data Takeover/Spoofing** (Impact: Severe 🔴)
 
-For more information, refer to the [MCP Vulnerabilities][11].
+For more information, see [MCP Vulnerabilities][11].
 
 [11]: https://www.linkedin.com/posts/eordax_ai-mcp-genai-activity-7333057511651954688-sbNO
