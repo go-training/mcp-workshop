@@ -1,5 +1,7 @@
 # mcp-workshop
 
+English | [繁體中文](README.zh-TW.md) | [簡體中文](README.zh-CN.md)
+
 This workshop provides a comprehensive guide to building both MCP ([Model Context Protocol][1]) servers and clients using the [Go programming language][2]. You will learn how to leverage MCP to streamline your workflow and enhance your development environment.
 
 ## Table of Contents
