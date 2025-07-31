@@ -2,7 +2,7 @@
 
 ## Introduction
 
-**MCP Proxy** is a server that **aggregates multiple MCP resource servers** behind a single HTTP endpoint. It helps clients access all tools and data streams from various MCP servers through one simple connection.
+[**MCP Proxy**](https://github.com/TBXark/mcp-proxy) is a server that **aggregates multiple MCP resource servers** behind a single HTTP endpoint. It helps clients access all tools and data streams from various MCP servers through one simple connection.
 
 ---
 
@@ -119,7 +119,7 @@ graph TD
     class Docker dockerClass
 ```
 
-*Clients only connect to the MCP Proxy, which forwards requests and collects data from all backend MCP Resource Servers.*
+_Clients only connect to the MCP Proxy, which forwards requests and collects data from all backend MCP Resource Servers._
 
 ---
 
