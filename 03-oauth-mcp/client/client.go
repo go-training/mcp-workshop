@@ -131,6 +131,15 @@ func main() {
 
 		slog.Info("Authorization successful!")
 
+		// Ping the server to verify connection
+		slog.Info("Pinging server to verify connection...")
+		err = c.Ping(context.Background())
+		if err != nil {
+			slog.Error("Failed to ping server", "err", err)
+			os.Exit(1)
+		}
+		slog.Info("Server ping successful!")
+
 		// Try to initialize again with the token
 		result, err = c.Initialize(context.Background(), mcp.InitializeRequest{
 			Params: mcp.InitializeParams{
