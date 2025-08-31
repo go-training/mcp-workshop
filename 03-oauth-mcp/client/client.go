@@ -21,6 +21,17 @@ const (
 	redirectURI = "http://localhost:8085/oauth/callback"
 )
 
+// fatalError logs an error message and exits the program with status code 1
+// If errors are provided, the first error will be logged with the message
+func fatalError(message string, errors ...error) {
+	if len(errors) > 0 && errors[0] != nil {
+		slog.Error(message, "err", errors[0])
+	} else {
+		slog.Error(message)
+	}
+	os.Exit(1)
+}
+
 func main() {
 	// Create a token store to persist tokens
 	tokenStore := client.NewMemoryTokenStore()
@@ -39,14 +50,12 @@ func main() {
 	// Create the client with OAuth support
 	c, err := client.NewOAuthStreamableHttpClient(serverURL, oauthConfig)
 	if err != nil {
-		slog.Error("Failed to create client", "err", err)
-		os.Exit(1)
+		fatalError("Failed to create client", err)
 	}
 
 	// Start the client
 	if err := c.Start(context.Background()); err != nil {
-		slog.Error("Failed to start client", "err", err)
-		os.Exit(1)
+		fatalError("Failed to start client", err)
 	}
 	defer c.Close()
 
@@ -75,30 +84,26 @@ func main() {
 
 		err = oauthHandler.RegisterClient(context.Background(), "mcp-go-oauth-example")
 		if err != nil {
-			slog.Error("Failed to register client", "err", err)
-			os.Exit(1)
+			fatalError("Failed to register client", err)
 		}
 
 		// Generate PKCE code verifier and challenge
 		codeVerifier, err := client.GenerateCodeVerifier()
 		if err != nil {
-			slog.Error("Failed to generate code verifier", "err", err)
-			os.Exit(1)
+			fatalError("Failed to generate code verifier", err)
 		}
 		codeChallenge := client.GenerateCodeChallenge(codeVerifier)
 
 		// Generate state parameter
 		state, err := client.GenerateState()
 		if err != nil {
-			slog.Error("Failed to generate state", "err", err)
-			os.Exit(1)
+			fatalError("Failed to generate state", err)
 		}
 
 		// Get the authorization URL
 		authURL, err := oauthHandler.GetAuthorizationURL(context.Background(), state, codeChallenge)
 		if err != nil {
-			slog.Error("Failed to get authorization URL", "err", err)
-			os.Exit(1)
+			fatalError("Failed to get authorization URL", err)
 		}
 
 		// Open the browser to the authorization URL
@@ -111,22 +116,19 @@ func main() {
 
 		// Verify state parameter
 		if params["state"] != state {
-			slog.Error("State mismatch", "expected", state, "got", params["state"])
-			os.Exit(1)
+			fatalError("State mismatch: expected " + state + ", got " + params["state"])
 		}
 
 		// Exchange the authorization code for a token
 		code := params["code"]
 		if code == "" {
-			slog.Error("No authorization code received")
-			os.Exit(1)
+			fatalError("No authorization code received", nil)
 		}
 
 		slog.Info("Exchanging authorization code for token...")
 		err = oauthHandler.ProcessAuthorizationResponse(context.Background(), code, state, codeVerifier)
 		if err != nil {
-			slog.Error("Failed to process authorization response", "err", err)
-			os.Exit(1)
+			fatalError("Failed to process authorization response", err)
 		}
 
 		slog.Info("Authorization successful!")
@@ -135,8 +137,7 @@ func main() {
 		slog.Info("Pinging server to verify connection...")
 		err = c.Ping(context.Background())
 		if err != nil {
-			slog.Error("Failed to ping server", "err", err)
-			os.Exit(1)
+			fatalError("Failed to ping server", err)
 		}
 		slog.Info("Server ping successful!")
 
@@ -151,12 +152,10 @@ func main() {
 			},
 		})
 		if err != nil {
-			slog.Error("Failed to initialize client after authorization", "err", err)
-			os.Exit(1)
+			fatalError("Failed to initialize client after authorization", err)
 		}
 	} else if err != nil {
-		slog.Error("Failed to initialize client", "err", err)
-		os.Exit(1)
+		fatalError("Failed to initialize client", err)
 	}
 
 	slog.Info("Client initialized successfully!",
@@ -174,8 +173,7 @@ func main() {
 			},
 		})
 		if err != nil {
-			slog.Error("Failed to list tools", "err", err)
-			os.Exit(1)
+			fatalError("Failed to list tools", err)
 		}
 
 		for _, tool := range tools.Tools {
@@ -192,8 +190,7 @@ func main() {
 			},
 		})
 		if err != nil {
-			slog.Error("Failed to call tool", "err", err)
-			os.Exit(1)
+			fatalError("Failed to call tool", err)
 		}
 		printToolResult(toolResult)
 	}
