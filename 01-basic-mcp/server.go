@@ -1,10 +1,16 @@
+//go:build !windows
+// +build !windows
+
 package main
 
 import (
+	"context"
 	"flag"
 	"log/slog"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/go-training/mcp-workshop/pkg/logger"
@@ -93,11 +99,30 @@ func main() {
 			WriteTimeout: 10 * time.Second, // 10 seconds
 			IdleTimeout:  60 * time.Second, // 60 seconds
 		}
-		// Start the HTTP server, listening on the specified address
-		if err := srv.ListenAndServe(); err != nil {
-			slog.Error("Server error", "err", err)
+		// Graceful shutdown logic
+		go func() {
+			if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+				slog.Error("Server error", "err", err)
+			}
+		}()
+
+		// Signal handling for shutdown
+		quit := make(chan os.Signal, 1)
+		signal.Notify(quit, os.Interrupt)
+		// For Unix systems, also handle SIGTERM
+		signal.Notify(quit, syscall.SIGTERM)
+
+		<-quit
+		slog.Info("Shutdown signal received, shutting down server...")
+
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		if err := srv.Shutdown(ctx); err != nil {
+			slog.Error("Server forced to shutdown", "err", err)
 			os.Exit(1)
 		}
+
+		slog.Info("Server shutdown gracefully")
 	default:
 		slog.Error("Invalid transport type", "transport", transport)
 		os.Exit(1)
