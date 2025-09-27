@@ -39,11 +39,10 @@ graph TD
         HTTP["HTTP Server<br/>Listen: {addr}<br/>Base URL: {baseURL}"]
 
         subgraph Core["Core Components"]
-            SSE["SSE Support<br/>Server-Sent Events<br/>Real-time Updates"]
             Aggregator["Tool Aggregator<br/>Aggregates Multiple Resource Servers"]
             Config["Config Management<br/>• JSON Config<br/>• Tool Filtering (allow/block)<br/>• Auth Token Management"]
-            ConnMgr["Connection Manager<br/>• stdio Transport<br/>• SSE Transport<br/>• Streamable HTTP Transport"]
-            Router["Router<br/>/{clientName}/sse"]
+            ConnMgr["Connection Manager<br/>• stdio Transport<br/>• Streamable HTTP Transport"]
+            Router["Router"]
         end
     end
 
@@ -53,9 +52,6 @@ graph TD
             StdIOCmd["CLI Tools<br/>Subprocess Execution<br/>npx, uvx Supported"]
         end
 
-        subgraph SSEServer["SSE Servers"]
-            SSEUrl["Server-Sent Events<br/>URL Config<br/>HTTP Headers"]
-        end
 
         subgraph HTTPStream["HTTP Streaming Servers"]
             HTTPUrl["streamable-http<br/>URL + Timeout Config<br/>Custom Headers"]
@@ -70,12 +66,8 @@ graph TD
     end
 
     %% Connections
-    Claude -->|"HTTP Request\n/{clientName}/sse"| HTTP
-    API -->|"HTTP Request\n/{clientName}/sse"| HTTP
-    Other -->|"HTTP Request\n/{clientName}/sse"| HTTP
 
     HTTP --> Router
-    Router --> SSE
     Router --> Aggregator
 
     Config -.-> ConnMgr
