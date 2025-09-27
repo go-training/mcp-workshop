@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -82,7 +83,7 @@ func main() {
 	}
 
 	// Initialize provider (GitHub for now)
-	provider := &GitHubProvider{}
+	provider := NewGitHubProvider()
 
 	mcpServer := NewMCPServer()
 	router := gin.Default()
@@ -100,13 +101,7 @@ func main() {
 	corsMiddleware := func(allowedHeaders ...string) gin.HandlerFunc {
 		headers := "Mcp-Protocol-Version, Authorization, Content-Type"
 		if len(allowedHeaders) > 0 {
-			headers = ""
-			for i, h := range allowedHeaders {
-				if i > 0 {
-					headers += ", "
-				}
-				headers += h
-			}
+			headers = strings.Join(allowedHeaders, ", ")
 		}
 		return func(c *gin.Context) {
 			c.Header("Access-Control-Allow-Origin", "*")
@@ -185,7 +180,8 @@ func main() {
 			code := c.PostForm("code")
 			clientIDParam := c.PostForm("client_id")
 			redirectURI := c.PostForm("redirect_uri")
-			slog.Info("Token request received", "grant_type", grantType, "client_id", clientIDParam, "redirect_uri", redirectURI)
+			// Log without sensitive information
+			slog.Info("Token request received", "grant_type", grantType, "client_id", clientIDParam)
 			if grantType != "authorization_code" {
 				c.JSON(http.StatusBadRequest, gin.H{"error": "unsupported grant_type"})
 				return
@@ -216,10 +212,13 @@ func main() {
 				return
 			}
 
-			slog.Info("Token response with user info",
-				"email", userInfo["email"],
-				"login", userInfo["login"],
-			)
+			if email, ok := userInfo["email"].(string); ok {
+				slog.Info("Token exchange successful", "user_email", email)
+			} else if login, ok := userInfo["login"].(string); ok {
+				slog.Info("Token exchange successful", "user_login", login)
+			} else {
+				slog.Info("Token exchange successful")
+			}
 
 			c.JSON(http.StatusOK, token)
 		})
