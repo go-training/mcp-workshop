@@ -12,9 +12,16 @@ type Token struct {
 	ExpiresAt    time.Time `json:"expires_at,omitempty"`
 }
 
-// OAuthProvider defines the methods for any OAuth provider.
+// UserInfo represents the user information returned from OAuth providers.
+type UserInfo struct {
+	Email     string `json:"email"`
+	Name      string `json:"name"`
+	Login     string `json:"login"`
+	AvatarURL string `json:"avatar_url,omitempty"`
+}
+
 type OAuthProvider interface {
 	GetAuthorizeURL(clientID, state, redirectURI, scopes string) (string, error)
 	ExchangeToken(clientID, clientSecret, code, redirectURI string) (*Token, error)
-	FetchUserInfo(accessToken string) (map[string]interface{}, error)
+	FetchUserInfo(accessToken string) (*UserInfo, error)
 }

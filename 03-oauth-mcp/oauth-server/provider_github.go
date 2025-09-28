@@ -99,7 +99,7 @@ func (g *GitHubProvider) ExchangeToken(clientID, clientSecret, code, redirectURI
 	}, nil
 }
 
-func (g *GitHubProvider) FetchUserInfo(accessToken string) (map[string]interface{}, error) {
+func (g *GitHubProvider) FetchUserInfo(accessToken string) (*UserInfo, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
 	defer cancel()
 
@@ -121,9 +121,27 @@ func (g *GitHubProvider) FetchUserInfo(accessToken string) (map[string]interface
 		}
 		return nil, fmt.Errorf("failed to fetch user info with status %d: %s", resp.StatusCode, string(body))
 	}
-	var user map[string]interface{}
-	if err := json.NewDecoder(resp.Body).Decode(&user); err != nil {
+
+	// Read and debug log the raw JSON body
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read user info body: %w", err)
+	}
+	fmt.Printf("[DEBUG] GitHub user info raw body: %s\n", string(body))
+
+	var user struct {
+		Login     string `json:"login"`
+		Email     string `json:"email"`
+		Name      string `json:"name"`
+		AvatarURL string `json:"avatar_url"`
+	}
+	if err := json.Unmarshal(body, &user); err != nil {
 		return nil, fmt.Errorf("failed to decode user info: %w", err)
 	}
-	return user, nil
+	return &UserInfo{
+		Name:      user.Name,
+		Email:     user.Email,
+		Login:     user.Login,
+		AvatarURL: user.AvatarURL,
+	}, nil
 }

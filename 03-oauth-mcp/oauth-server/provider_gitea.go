@@ -107,15 +107,8 @@ func (g *GiteaProvider) ExchangeToken(clientID, clientSecret, code, redirectURI 
 	}, nil
 }
 
-// GiteaUser represents the user information returned from the Gitea API.
-type GiteaUser struct {
-	Login     string `json:"login"`
-	Email     string `json:"email"`
-	AvatarURL string `json:"avatar_url"`
-}
-
 // FetchUserInfo fetches user information from the Gitea API.
-func (g *GiteaProvider) FetchUserInfo(accessToken string) (map[string]interface{}, error) {
+func (g *GiteaProvider) FetchUserInfo(accessToken string) (*UserInfo, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
 	defer cancel()
 
@@ -141,15 +134,28 @@ func (g *GiteaProvider) FetchUserInfo(accessToken string) (map[string]interface{
 		return nil, fmt.Errorf("failed to fetch gitea user info with status %d: %s", resp.StatusCode, string(body))
 	}
 
-	var user GiteaUser
-	if err := json.NewDecoder(resp.Body).Decode(&user); err != nil {
+	// Read and debug log the raw JSON body
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read gitea user info body: %w", err)
+	}
+	fmt.Printf("[DEBUG] Gitea user info raw body: %s\n", string(body))
+
+	var user struct {
+		Login     string `json:"login"`
+		Email     string `json:"email"`
+		Name      string `json:"name"`
+		AvatarURL string `json:"avatar_url"`
+		FullName  string `json:"full_name"`
+	}
+	if err := json.Unmarshal(body, &user); err != nil {
 		return nil, fmt.Errorf("failed to decode gitea user info: %w", err)
 	}
 
-	// Map Gitea user data to the standard User structure.
-	return map[string]interface{}{
-		"name":    user.Login,
-		"email":   user.Email,
-		"picture": user.AvatarURL,
+	return &UserInfo{
+		Name:      user.FullName,
+		Email:     user.Email,
+		Login:     user.Login,
+		AvatarURL: user.AvatarURL,
 	}, nil
 }

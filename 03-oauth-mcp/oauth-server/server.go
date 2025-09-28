@@ -197,13 +197,13 @@ func main() {
 				return
 			}
 
-			if email, ok := userInfo["email"].(string); ok {
-				slog.Info("Token exchange successful", "user_email", email)
-			} else if login, ok := userInfo["login"].(string); ok {
-				slog.Info("Token exchange successful", "user_login", login)
-			} else {
-				slog.Info("Token exchange successful")
-			}
+			// Log all user info fields
+			slog.Info("Token exchange successful",
+				"user_email", userInfo.Email,
+				"user_name", userInfo.Name,
+				"user_login", userInfo.Login,
+				"user_avatar_url", userInfo.AvatarURL,
+			)
 
 			c.JSON(http.StatusOK, token)
 		})
