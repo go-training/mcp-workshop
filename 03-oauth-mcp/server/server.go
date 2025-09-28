@@ -71,9 +71,13 @@ func main() {
 	var addr string
 	var clientID string
 	var clientSecret string
+	var providerName string
+	var giteaHost string
 	flag.StringVar(&clientID, "client_id", "", "OAuth 2.0 Client ID")
 	flag.StringVar(&clientSecret, "client_secret", "", "OAuth 2.0 Client Secret")
 	flag.StringVar(&addr, "addr", ":8095", "address to listen on")
+	flag.StringVar(&providerName, "provider", "github", "OAuth provider: github or gitea")
+	flag.StringVar(&giteaHost, "gitea-host", "https://gitea.com", "Gitea host")
 	flag.Parse()
 
 	if clientID == "" || clientSecret == "" {
@@ -81,8 +85,19 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Initialize provider (GitHub for now)
-	provider := NewGitHubProvider()
+	// Initialize provider based on the flag
+	var provider OAuthProvider
+	switch providerName {
+	case "github":
+		provider = NewGitHubProvider()
+		slog.Info("Using GitHub OAuth provider")
+	case "gitea":
+		provider = NewGiteaProvider(giteaHost)
+		slog.Info("Using Gitea OAuth provider", "host", giteaHost)
+	default:
+		slog.Error("Invalid provider specified. Use 'github' or 'gitea'.")
+		os.Exit(1)
+	}
 
 	mcpServer := NewMCPServer()
 	router := gin.Default()
