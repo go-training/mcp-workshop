@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"strings"
 	"syscall"
 	"time"
 
@@ -87,35 +86,6 @@ func main() {
 
 	mcpServer := NewMCPServer()
 	router := gin.Default()
-
-	// Middleware to check Authorization header
-	authMiddleware := func(c *gin.Context) {
-		if c.GetHeader("Authorization") == "" {
-			c.AbortWithStatus(http.StatusUnauthorized)
-			return
-		}
-		c.Next()
-	}
-
-	// CORS middleware for handling preflight and actual requests
-	corsMiddleware := func(allowedHeaders ...string) gin.HandlerFunc {
-		headers := "Mcp-Protocol-Version, Authorization, Content-Type"
-		if len(allowedHeaders) > 0 {
-			headers = strings.Join(allowedHeaders, ", ")
-		}
-		return func(c *gin.Context) {
-			c.Header("Access-Control-Allow-Origin", "*")
-			c.Header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-			c.Header("Access-Control-Allow-Headers", headers)
-			c.Header("Access-Control-Max-Age", "86400")
-			if c.Request.Method == "OPTIONS" {
-				c.AbortWithStatus(http.StatusNoContent)
-				return
-			}
-			c.Next()
-		}
-	}
-
 	router.Use(corsMiddleware())
 
 	// Register POST, GET, DELETE methods for the /mcp path, all handled by MCPServer
@@ -231,6 +201,7 @@ func main() {
 				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 				return
 			}
+
 			body["client_id"] = clientID
 			body["client_secret"] = clientSecret
 			c.JSON(http.StatusOK, body)
