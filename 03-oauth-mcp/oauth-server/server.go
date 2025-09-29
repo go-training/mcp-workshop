@@ -21,30 +21,6 @@ import (
 	"github.com/mark3labs/mcp-go/server"
 )
 
-// ClientRegistration represents OAuth client registration data
-type ClientRegistration struct {
-	ApplicationType         string   `json:"application_type"`
-	ClientName              string   `json:"client_name"`
-	ClientURI               string   `json:"client_uri"`
-	GrantTypes              []string `json:"grant_types"`
-	RedirectURIs            []string `json:"redirect_uris"`
-	ResponseTypes           []string `json:"response_types"`
-	TokenEndpointAuthMethod string   `json:"token_endpoint_auth_method"`
-}
-
-// RegisterResponse represents the response for client registration
-type RegisterResponse struct {
-	ClientID                string   `json:"client_id"`
-	ClientSecret            string   `json:"client_secret"`
-	ApplicationType         string   `json:"application_type"`
-	ClientName              string   `json:"client_name"`
-	ClientURI               string   `json:"client_uri"`
-	GrantTypes              []string `json:"grant_types"`
-	RedirectURIs            []string `json:"redirect_uris"`
-	ResponseTypes           []string `json:"response_types"`
-	TokenEndpointAuthMethod string   `json:"token_endpoint_auth_method"`
-}
-
 // MCPServer wraps the underlying MCP server instance.
 type MCPServer struct {
 	server *server.MCPServer
@@ -255,23 +231,19 @@ func main() {
 	// Add /register endpoint: echoes back the JSON body
 	router.POST("/register",
 		corsMiddleware("Authorization", "Content-Type"), func(c *gin.Context) {
-			var registration ClientRegistration
+			var registration ClientRegistrationMetadata
 			if err := c.ShouldBindJSON(&registration); err != nil {
 				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 				return
 			}
 
 			// Create response using RegisterResponse struct
-			response := RegisterResponse{
-				ClientID:                clientID,
-				ClientSecret:            clientSecret,
-				ApplicationType:         registration.ApplicationType,
-				ClientName:              registration.ClientName,
-				ClientURI:               registration.ClientURI,
-				GrantTypes:              registration.GrantTypes,
-				RedirectURIs:            registration.RedirectURIs,
-				ResponseTypes:           registration.ResponseTypes,
-				TokenEndpointAuthMethod: registration.TokenEndpointAuthMethod,
+			response := &ClientRegistrationResponse{
+				ClientID:                   clientID,
+				ClientSecret:               clientSecret,
+				ClientRegistrationMetadata: registration,
+				ClientIDIssuedAt:           time.Now(),
+				ClientSecretExpiresAt:      time.Now().Add(1 * time.Minute), // Expires in 1 minute
 			}
 
 			slog.Debug("Client registered", "response", response)
