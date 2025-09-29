@@ -91,18 +91,22 @@ func (s *MCPServer) ServeStdio() error {
 }
 
 func main() {
-	logger.New()
 	var addr string
 	var clientID string
 	var clientSecret string
 	var providerName string
 	var giteaHost string
+	var logLevel string
 	flag.StringVar(&clientID, "client_id", "", "OAuth 2.0 Client ID")
 	flag.StringVar(&clientSecret, "client_secret", "", "OAuth 2.0 Client Secret")
 	flag.StringVar(&addr, "addr", ":8095", "address to listen on")
 	flag.StringVar(&providerName, "provider", "github", "OAuth provider: github or gitea")
 	flag.StringVar(&giteaHost, "gitea-host", "https://gitea.com", "Gitea host")
+	flag.StringVar(&logLevel, "log-level", "", "Log level (DEBUG, INFO, WARN, ERROR). Defaults to DEBUG in development, INFO in production")
 	flag.Parse()
+
+	// Initialize logger with the specified log level
+	logger.NewWithLevel(logLevel)
 
 	if clientID == "" || clientSecret == "" {
 		slog.Error("Client ID and Client Secret must be provided")

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/url"
 
@@ -139,7 +140,7 @@ func (g *GiteaProvider) FetchUserInfo(accessToken string) (*UserInfo, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to read gitea user info body: %w", err)
 	}
-	fmt.Printf("[DEBUG] Gitea user info raw body: %s\n", string(body))
+	slog.Debug("Gitea user info response", "raw_body", string(body))
 
 	var user struct {
 		Login     string `json:"login"`

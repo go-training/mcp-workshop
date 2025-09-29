@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"time"
@@ -127,7 +128,7 @@ func (g *GitHubProvider) FetchUserInfo(accessToken string) (*UserInfo, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to read user info body: %w", err)
 	}
-	fmt.Printf("[DEBUG] GitHub user info raw body: %s\n", string(body))
+	slog.Debug("GitHub user info response", "raw_body", string(body))
 
 	var user struct {
 		Login     string `json:"login"`
