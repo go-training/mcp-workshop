@@ -96,12 +96,14 @@ func main() {
 	var clientSecret string
 	var providerName string
 	var giteaHost string
+	var gitlabHost string
 	var logLevel string
 	flag.StringVar(&clientID, "client_id", "", "OAuth 2.0 Client ID")
 	flag.StringVar(&clientSecret, "client_secret", "", "OAuth 2.0 Client Secret")
 	flag.StringVar(&addr, "addr", ":8095", "address to listen on")
-	flag.StringVar(&providerName, "provider", "github", "OAuth provider: github or gitea")
+	flag.StringVar(&providerName, "provider", "github", "OAuth provider: github, gitea, or gitlab")
 	flag.StringVar(&giteaHost, "gitea-host", "https://gitea.com", "Gitea host")
+	flag.StringVar(&gitlabHost, "gitlab-host", "https://gitlab.com", "GitLab host")
 	flag.StringVar(&logLevel, "log-level", "", "Log level (DEBUG, INFO, WARN, ERROR). Defaults to DEBUG in development, INFO in production")
 	flag.Parse()
 
@@ -122,6 +124,9 @@ func main() {
 	case "gitea":
 		provider = NewGiteaProvider(giteaHost)
 		slog.Info("Using Gitea OAuth provider", "host", giteaHost)
+	case "gitlab":
+		provider = NewGitLabProvider(gitlabHost)
+		slog.Info("Using GitLab OAuth provider", "host", gitlabHost)
 	default:
 		slog.Error("Invalid provider specified. Use 'github' or 'gitea'.")
 		os.Exit(1)
@@ -148,12 +153,23 @@ func main() {
 
 	router.GET("/.well-known/oauth-authorization-server",
 		corsMiddleware(), func(c *gin.Context) {
+			// Set supported scopes based on provider
+			var scopesSupported []string
+			switch providerName {
+			case "gitlab":
+				scopesSupported = []string{"read_user"}
+			case "github", "gitea":
+				scopesSupported = []string{"openid", "profile", "email"}
+			default:
+				scopesSupported = []string{"openid", "profile", "email"}
+			}
+
 			metadata := transport.AuthServerMetadata{
 				Issuer:                            "http://localhost" + addr,
 				AuthorizationEndpoint:             "http://localhost" + addr + "/authorize",
 				TokenEndpoint:                     "http://localhost" + addr + "/token",
 				RegistrationEndpoint:              "http://localhost" + addr + "/register",
-				ScopesSupported:                   []string{"openid", "profile", "email"},
+				ScopesSupported:                   scopesSupported,
 				ResponseTypesSupported:            []string{"code"},
 				GrantTypesSupported:               []string{"authorization_code", "refresh_token"},
 				TokenEndpointAuthMethodsSupported: []string{"none", "client_secret_basic", "client_secret_post"},

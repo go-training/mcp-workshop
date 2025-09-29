@@ -8,13 +8,13 @@ This project demonstrates an OAuth 2.0 protected [Model Context Protocol (MCP)](
 
 The server provides:
 
-- **GitHub OAuth Integration**: Uses GitHub as the OAuth 2.0 provider for user authentication
+- **Multi-Provider OAuth Integration**: Supports GitHub, GitLab, and Gitea as OAuth 2.0 providers for user authentication
 - **MCP Server with Authentication**: Requires valid OAuth tokens for all MCP endpoint access
 - **Context-based Token Propagation**: Injects and propagates authentication tokens through Go's `context.Context`
 - **Two Authenticated MCP Tools**:
   - `make_authenticated_request`: Makes authenticated HTTP requests to external APIs using the user's token
   - `show_auth_token`: Displays a masked version of the current authorization token
-- **OAuth 2.0 Endpoints**: Implements required OAuth endpoints with GitHub provider integration
+- **OAuth 2.0 Endpoints**: Implements required OAuth endpoints with provider integration
 - **Dynamic Client Registration**: Supports automatic client registration for MCP clients
 
 ---
@@ -89,12 +89,27 @@ sequenceDiagram
 - Returns a masked version showing only first and last 4 characters
 - Demonstrates token availability within MCP tool handlers
 
-### 3. GitHub OAuth Provider Integration
+### 3. Multi-Provider OAuth Integration
+
+#### GitHub Provider
 
 - **GitHubProvider**: Implements the `OAuthProvider` interface with GitHub-specific endpoints
 - **Authorization**: Redirects to `https://github.com/login/oauth/authorize` with proper parameters
 - **Token Exchange**: Exchanges authorization codes for GitHub access tokens via `https://github.com/login/oauth/access_token`
 - **User Info**: Fetches user profile from `https://api.github.com/user` for validation and logging
+
+#### GitLab Provider
+
+- **GitLabProvider**: Implements the `OAuthProvider` interface with GitLab-specific endpoints
+- **Authorization**: Redirects to `{gitlab_host}/oauth/authorize` with proper parameters
+- **Token Exchange**: Exchanges authorization codes for GitLab access tokens via `{gitlab_host}/oauth/token`
+- **User Info**: Fetches user profile from `{gitlab_host}/api/v4/user` for validation and logging
+- **Self-hosted Support**: Configurable GitLab host for self-hosted instances
+
+#### Gitea Provider
+
+- **GiteaProvider**: Implements the `OAuthProvider` interface with Gitea-specific endpoints
+- **Self-hosted Support**: Configurable Gitea host for self-hosted instances
 
 ### 4. OAuth 2.0 Endpoints
 
@@ -157,16 +172,36 @@ flowchart TD
    cd 03-oauth-mcp/server
    ```
 
-2. Start the server with your GitHub OAuth credentials:
+2. Start the server with your OAuth credentials:
+
+   **GitHub (default):**
 
    ```bash
    go run server.go -client_id="your-github-client-id" -client_secret="your-github-client-secret"
    ```
 
+   **GitLab.com:**
+
+   ```bash
+   go run server.go -provider="gitlab" -client_id="your-gitlab-client-id" -client_secret="your-gitlab-client-secret"
+   ```
+
+   **Self-hosted GitLab:**
+
+   ```bash
+   go run server.go -provider="gitlab" -gitlab-host="https://gitlab.example.com" -client_id="your-client-id" -client_secret="your-client-secret"
+   ```
+
+   **Gitea:**
+
+   ```bash
+   go run server.go -provider="gitea" -gitea-host="https://gitea.example.com" -client_id="your-client-id" -client_secret="your-client-secret"
+   ```
+
 3. Optional: Specify a different port:
 
    ```bash
-   go run server.go -client_id="your-id" -client_secret="your-secret" -addr=":8095"
+   go run server.go -provider="gitlab" -client_id="your-id" -client_secret="your-secret" -addr=":8095"
    ```
 
 ### Server Endpoints
@@ -176,8 +211,8 @@ flowchart TD
 | `/mcp` | POST/GET/DELETE | MCP protocol endpoint | ✅ Bearer token |
 | `/.well-known/oauth-protected-resource` | GET | Resource metadata | ❌ |
 | `/.well-known/oauth-authorization-server` | GET | OAuth server metadata | ❌ |
-| `/authorize` | GET | GitHub OAuth authorization | ❌ |
-| `/token` | POST | Token exchange with GitHub | ❌ |
+| `/authorize` | GET | OAuth authorization (redirects to provider) | ❌ |
+| `/token` | POST | Token exchange with OAuth provider | ❌ |
 | `/register` | POST | Dynamic client registration | ❌ |
 
 ### Testing with curl
