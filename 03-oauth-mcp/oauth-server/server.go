@@ -240,7 +240,7 @@ func main() {
 			// Create response using RegisterResponse struct
 			response := &ClientRegistrationResponse{
 				ClientID:                   clientID,
-				ClientSecret:               clientSecret,
+				ClientSecret:               "",
 				ClientRegistrationMetadata: registration,
 				ClientIDIssuedAt:           time.Now(),
 				ClientSecretExpiresAt:      time.Now().Add(1 * time.Minute), // Expires in 1 minute
