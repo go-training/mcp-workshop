@@ -248,7 +248,7 @@ func main() {
 
 			slog.Debug("Client registered", "response", response)
 
-			c.JSON(http.StatusOK, response)
+			c.JSON(http.StatusCreated, response)
 		})
 
 	// Output server startup message
