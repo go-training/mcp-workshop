@@ -120,7 +120,7 @@ func main() {
 	router.GET("/.well-known/oauth-protected-resource",
 		corsMiddleware(), func(c *gin.Context) {
 			metadata := &transport.OAuthProtectedResource{
-				AuthorizationServers: []string{"http://localhost" + addr + "/.well-known/oauth-authorization-server"},
+				AuthorizationServers: []string{"http://localhost" + addr},
 				Resource:             "Example OAuth Protected Resource",
 				ResourceName:         "Example OAuth Protected Resource",
 			}
