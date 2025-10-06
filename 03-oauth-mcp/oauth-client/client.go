@@ -38,13 +38,10 @@ func main() {
 
 	// Create OAuth configuration
 	oauthConfig := client.OAuthConfig{
-		// Client ID can be empty if using dynamic registration
-		ClientID:     os.Getenv("MCP_CLIENT_ID"),
-		ClientSecret: os.Getenv("MCP_CLIENT_SECRET"),
-		RedirectURI:  redirectURI,
-		Scopes:       []string{"mcp.read", "mcp.write"},
-		TokenStore:   tokenStore,
-		PKCEEnabled:  true, // Enable PKCE for public clients
+		RedirectURI: redirectURI,
+		Scopes:      []string{"mcp.read", "mcp.write"},
+		TokenStore:  tokenStore,
+		PKCEEnabled: true, // Enable PKCE for public clients
 	}
 
 	// Create the client with OAuth support
@@ -133,14 +130,6 @@ func main() {
 
 		slog.Info("Authorization successful!")
 
-		// Ping the server to verify connection
-		slog.Info("Pinging server to verify connection...")
-		err = c.Ping(context.Background())
-		if err != nil {
-			fatalError("Failed to ping server", err)
-		}
-		slog.Info("Server ping successful!")
-
 		// Try to initialize again with the token
 		result, err = c.Initialize(context.Background(), mcp.InitializeRequest{
 			Params: mcp.InitializeParams{
@@ -154,6 +143,15 @@ func main() {
 		if err != nil {
 			fatalError("Failed to initialize client after authorization", err)
 		}
+
+		// Ping the server to verify connection
+		slog.Info("Pinging server to verify connection...")
+		err = c.Ping(context.Background())
+		if err != nil {
+			fatalError("Failed to ping server", err)
+		}
+		slog.Info("Server ping successful!")
+
 	} else if err != nil {
 		fatalError("Failed to initialize client", err)
 	}
