@@ -266,6 +266,19 @@ func main() {
 				return
 			}
 
+			// Validate client credentials
+			client, err := memoryStore.GetClient(c.Request.Context(), clientID)
+			if err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "invalid client_id"})
+				return
+			}
+
+			// Validate client secret
+			if client.Secret != clientSecret {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "invalid client_secret"})
+				return
+			}
+
 			// Get authorization code
 			authCode, err := memoryStore.GetAuthorizationCode(c.Request.Context(), clientID)
 			if err != nil || authCode == nil {
