@@ -4,6 +4,8 @@ package main
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/base64"
 	"flag"
 	"log/slog"
 	"net/http"
@@ -15,8 +17,10 @@ import (
 	"github.com/go-training/mcp-workshop/pkg/core"
 	"github.com/go-training/mcp-workshop/pkg/logger"
 	"github.com/go-training/mcp-workshop/pkg/operation"
+	"github.com/go-training/mcp-workshop/pkg/store"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/mark3labs/mcp-go/client/transport"
 	"github.com/mark3labs/mcp-go/server"
 )
@@ -68,14 +72,14 @@ func (s *MCPServer) ServeStdio() error {
 
 func main() {
 	var addr string
-	var clientID string
-	var clientSecret string
+	var externalClientID string
+	var externalClientSecret string
 	var providerName string
 	var giteaHost string
 	var gitlabHost string
 	var logLevel string
-	flag.StringVar(&clientID, "client_id", "", "OAuth 2.0 Client ID")
-	flag.StringVar(&clientSecret, "client_secret", "", "OAuth 2.0 Client Secret")
+	flag.StringVar(&externalClientID, "client_id", "", "OAuth 2.0 Client ID")
+	flag.StringVar(&externalClientSecret, "client_secret", "", "OAuth 2.0 Client Secret")
 	flag.StringVar(&addr, "addr", ":8095", "address to listen on")
 	flag.StringVar(&providerName, "provider", "github", "OAuth provider: github, gitea, or gitlab")
 	flag.StringVar(&giteaHost, "gitea-host", "https://gitea.com", "Gitea host")
@@ -86,7 +90,7 @@ func main() {
 	// Initialize logger with the specified log level
 	logger.NewWithLevel(logLevel)
 
-	if clientID == "" || clientSecret == "" {
+	if externalClientID == "" || externalClientSecret == "" {
 		slog.Error("Client ID and Client Secret must be provided")
 		os.Exit(1)
 	}
@@ -107,6 +111,9 @@ func main() {
 		slog.Error("Invalid provider specified. Use 'github' or 'gitea'.")
 		os.Exit(1)
 	}
+
+	// Initialize Memory store
+	memoryStore := store.NewMemoryStore()
 
 	mcpServer := NewMCPServer()
 	router := gin.Default()
@@ -193,7 +200,7 @@ func main() {
 			"code_challenge_method", codeChallengeMethod,
 		)
 
-		authURL, err := provider.GetAuthorizeURL(clientID, state, redirectURI, scope)
+		authURL, err := provider.GetAuthorizeURL(externalClientID, state, redirectURI, scope)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
@@ -218,7 +225,7 @@ func main() {
 				return
 			}
 
-			token, err := provider.ExchangeToken(clientID, clientSecret, code, redirectURI)
+			token, err := provider.ExchangeToken(externalClientID, externalClientSecret, code, redirectURI)
 			if err != nil {
 				slog.Error("Token exchange failed", "error", err)
 				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -253,19 +260,60 @@ func main() {
 	// Add /register endpoint: echoes back the JSON body
 	router.POST("/register",
 		corsMiddleware("Authorization", "Content-Type"), func(c *gin.Context) {
-			var registration ClientRegistrationMetadata
-			if err := c.ShouldBindJSON(&registration); err != nil {
+			var req ClientRegistrationMetadata
+			if err := c.ShouldBindJSON(&req); err != nil {
 				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+				return
+			}
+
+			if len(req.RedirectURIs) == 0 {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "redirect_uris is required"})
+				return
+			}
+
+			// Set default values if not provided
+			if len(req.GrantTypes) == 0 {
+				req.GrantTypes = []string{"authorization_code", "refresh_token"}
+			}
+			if len(req.ResponseTypes) == 0 {
+				req.ResponseTypes = []string{"code"}
+			}
+			if req.Scope == "" {
+				req.Scope = "openid profile email"
+			}
+
+			// Generate client credentials
+			clientID := uuid.New().String()
+			clientSecret := generateClientSecret()
+
+			// Create client
+			client := &core.Client{
+				ID:                    clientID,
+				Secret:                clientSecret,
+				RedirectURIs:          req.RedirectURIs,
+				GrantTypes:            req.GrantTypes,
+				ResponseTypes:         req.ResponseTypes,
+				Scope:                 req.Scope,
+				IssuedAt:              time.Now().Unix(),
+				ClientSecretExpiresAt: time.Now().Add(1 * time.Minute).Unix(),
+			}
+
+			err := memoryStore.CreateClient(context.Background(), client)
+			if err != nil {
+				slog.Error("Failed to create client", "error", err)
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create client", "details": err.Error()})
 				return
 			}
 
 			// Create response using RegisterResponse struct
 			response := &ClientRegistrationResponse{
-				ClientID:                   clientID,
-				ClientSecret:               "",
-				ClientRegistrationMetadata: registration,
-				ClientIDIssuedAt:           time.Now(),
-				ClientSecretExpiresAt:      time.Now().Add(1 * time.Minute), // Expires in 1 minute
+				ClientID:                client.ID,
+				ClientSecret:            client.Secret,
+				ClientIDIssuedAt:        time.Unix(client.IssuedAt, 0),
+				ClientSecretExpiresAt:   time.Unix(client.ClientSecretExpiresAt, 0),
+				RedirectURIs:            req.RedirectURIs,
+				GrantTypes:              req.GrantTypes,
+				TokenEndpointAuthMethod: req.TokenEndpointAuthMethod,
 			}
 
 			slog.Debug("Client registered", "response", response)
@@ -305,4 +353,10 @@ func main() {
 	}
 
 	slog.Info("Server shutdown gracefully")
+}
+
+func generateClientSecret() string {
+	b := make([]byte, 32)
+	rand.Read(b)
+	return base64.RawURLEncoding.EncodeToString(b)
 }

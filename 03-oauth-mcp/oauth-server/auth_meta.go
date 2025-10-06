@@ -77,10 +77,6 @@ type ClientRegistrationMetadata struct {
 // ClientRegistrationResponse represents the fields returned by the Authorization Server
 // (RFC 7591, Section 3.2.1 and 3.2.2).
 type ClientRegistrationResponse struct {
-	// ClientRegistrationMetadata contains all registered client metadata, returned by the
-	// server on success, potentially with modified or defaulted values.
-	ClientRegistrationMetadata
-
 	// ClientID is the REQUIRED newly issued OAuth 2.0 client identifier.
 	ClientID string `json:"client_id"`
 
@@ -93,6 +89,20 @@ type ClientRegistrationResponse struct {
 	// ClientSecretExpiresAt is the REQUIRED (if client_secret is issued) Unix
 	// timestamp when the secret expires, or 0 if it never expires.
 	ClientSecretExpiresAt time.Time `json:"client_secret_expires_at,omitempty"`
+
+	// RedirectURIs is a REQUIRED JSON array of redirection URI strings for use in
+	// redirect-based flows (such as the authorization code grant).
+	RedirectURIs []string `json:"redirect_uris"`
+
+	// TokenEndpointAuthMethod is an OPTIONAL string indicator of the requested
+	// authentication method for the token endpoint.
+	// If omitted, the default is "client_secret_basic".
+	TokenEndpointAuthMethod string `json:"token_endpoint_auth_method,omitempty"`
+
+	// GrantTypes is an OPTIONAL JSON array of OAuth 2.0 grant type strings
+	// that the client will restrict itself to using.
+	// If omitted, the default is ["authorization_code"].
+	GrantTypes []string `json:"grant_types,omitempty"`
 }
 
 func (r *ClientRegistrationResponse) MarshalJSON() ([]byte, error) {
