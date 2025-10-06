@@ -9,8 +9,10 @@ import (
 	"flag"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -182,6 +184,19 @@ func main() {
 			return
 		}
 
+		// Get client
+		client, err := memoryStore.GetClient(c.Request.Context(), clientID)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid client_id"})
+			return
+		}
+
+		// Validate redirect URI
+		if !isValidRedirectURI(redirectURI, client.RedirectURIs) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid redirect_uri"})
+			return
+		}
+
 		// Validate code challenge if provided
 		if codeChallenge != "" {
 			if codeChallengeMethod != "plain" && codeChallengeMethod != "S256" {
@@ -205,6 +220,23 @@ func main() {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
+
+		// Save authorization code
+		authCode := &core.AuthorizationCode{
+			ClientID:            clientID,
+			Code:                generateAuthorizationCode(),
+			RedirectURI:         redirectURI,
+			Scope:               strings.Split(scope, " "),
+			CodeChallenge:       codeChallenge,
+			CodeChallengeMethod: codeChallengeMethod,
+			CreatedAt:           time.Now().Unix(),
+			ExpiresAt:           time.Now().Add(10 * time.Minute).Unix(),
+		}
+		if err := memoryStore.SaveAuthorizationCode(c.Request.Context(), authCode); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
 		c.Redirect(http.StatusFound, authURL)
 	})
 
@@ -359,4 +391,32 @@ func generateClientSecret() string {
 	b := make([]byte, 32)
 	rand.Read(b)
 	return base64.RawURLEncoding.EncodeToString(b)
+}
+
+func generateAuthorizationCode() string {
+	b := make([]byte, 32)
+	rand.Read(b)
+	return base64.RawURLEncoding.EncodeToString(b)
+}
+
+func isValidRedirectURI(redirectURI string, allowedURIs []string) bool {
+	u, err := url.Parse(redirectURI)
+	if err != nil {
+		return false
+	}
+
+	for _, allowed := range allowedURIs {
+		allowedURL, err := url.Parse(allowed)
+		if err != nil {
+			continue
+		}
+
+		if u.Scheme == allowedURL.Scheme &&
+			u.Host == allowedURL.Host &&
+			strings.HasPrefix(u.Path, allowedURL.Path) {
+			return true
+		}
+	}
+
+	return false
 }
