@@ -395,7 +395,6 @@ func main() {
 
 			err := memoryStore.CreateClient(context.Background(), client)
 			if err != nil {
-				slog.Error("Failed to create client", "error", err)
 				c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create client", "details": err.Error()})
 				return
 			}
