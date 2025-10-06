@@ -26,7 +26,7 @@ func TestGitLabProvider_NewGitLabProvider(t *testing.T) {
 func TestGitLabProvider_GetAuthorizeURL(t *testing.T) {
 	provider := NewGitLabProvider("https://gitlab.com")
 
-	url, err := provider.GetAuthorizeURL("test-client", "test-state", "https://example.com/callback", "read_user")
+	url, err := provider.GetAuthorizeURL("test-client", "test-state", "https://example.com/callback", "read_user", "", "")
 	if err != nil {
 		t.Fatalf("GetAuthorizeURL failed: %v", err)
 	}
@@ -50,7 +50,7 @@ func TestGitLabProvider_GetAuthorizeURL(t *testing.T) {
 func TestGitLabProvider_GetAuthorizeURL_DefaultScopes(t *testing.T) {
 	provider := NewGitLabProvider("https://gitlab.com")
 
-	url, err := provider.GetAuthorizeURL("test-client", "test-state", "https://example.com/callback", "")
+	url, err := provider.GetAuthorizeURL("test-client", "test-state", "https://example.com/callback", "", "", "")
 	if err != nil {
 		t.Fatalf("GetAuthorizeURL failed: %v", err)
 	}

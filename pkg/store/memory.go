@@ -45,33 +45,51 @@ func (m *MemoryStore) SaveAuthorizationCode(ctx context.Context, code *core.Auth
 	if code == nil {
 		return ErrNilAuthorizationCode
 	}
-	if code.Code == "" {
-		return ErrEmptyCode
+	if code.ClientID == "" {
+		return ErrEmptyClientID
 	}
 
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	m.codes[code.Code] = code
+	m.codes[code.ClientID] = code
 	return nil
 }
 
 // GetAuthorizationCode retrieves an authorization code from memory by its code string.
 // It returns ErrCodeNotFound if the code does not exist.
-func (m *MemoryStore) GetAuthorizationCode(ctx context.Context, code string) (*core.AuthorizationCode, error) {
-	if code == "" {
-		return nil, ErrEmptyCode
+func (m *MemoryStore) GetAuthorizationCode(ctx context.Context, clientID string) (*core.AuthorizationCode, error) {
+	if clientID == "" {
+		return nil, ErrEmptyClientID
 	}
 
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
-	authCode, exists := m.codes[code]
+	authCode, exists := m.codes[clientID]
 	if !exists {
 		return nil, ErrCodeNotFound
 	}
 
 	return authCode, nil
+}
+
+// DeleteAuthorizationCode removes an authorization code from memory by its code string.
+// It returns ErrCodeNotFound if the code does not exist.
+func (m *MemoryStore) DeleteAuthorizationCode(ctx context.Context, clientID string) error {
+	if clientID == "" {
+		return ErrEmptyClientID
+	}
+
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if _, exists := m.codes[clientID]; !exists {
+		return ErrCodeNotFound
+	}
+
+	delete(m.codes, clientID)
+	return nil
 }
 
 // GetClient retrieves a client from memory by its client ID.

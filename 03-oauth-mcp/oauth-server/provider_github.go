@@ -35,7 +35,7 @@ func NewGitHubProvider() *GitHubProvider {
 	}
 }
 
-func (g *GitHubProvider) GetAuthorizeURL(clientID, state, redirectURI, scopes string) (string, error) {
+func (g *GitHubProvider) GetAuthorizeURL(clientID, state, redirectURI, scopes, codeChallenge, codeChallengeMethod string) (string, error) {
 	u, err := url.Parse(githubAuthorizeURL)
 	if err != nil {
 		return "", fmt.Errorf("failed to parse authorize URL: %w", err)
@@ -49,11 +49,15 @@ func (g *GitHubProvider) GetAuthorizeURL(clientID, state, redirectURI, scopes st
 	if scopes != "" {
 		values.Set("scope", scopes)
 	}
+	if codeChallenge != "" {
+		values.Set("code_challenge", codeChallenge)
+		values.Set("code_challenge_method", codeChallengeMethod)
+	}
 	u.RawQuery = values.Encode()
 	return u.String(), nil
 }
 
-func (g *GitHubProvider) ExchangeToken(clientID, clientSecret, code, redirectURI string) (*Token, error) {
+func (g *GitHubProvider) ExchangeToken(clientID, clientSecret, code, redirectURI, codeVerifier string) (*Token, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
 	defer cancel()
 
@@ -62,6 +66,7 @@ func (g *GitHubProvider) ExchangeToken(clientID, clientSecret, code, redirectURI
 		"client_secret": clientSecret,
 		"code":          code,
 		"redirect_uri":  redirectURI,
+		"code_verifier": codeVerifier,
 	}
 	jsonBody, err := json.Marshal(reqBody)
 	if err != nil {

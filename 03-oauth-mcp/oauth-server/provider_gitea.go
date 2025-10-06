@@ -37,7 +37,7 @@ func NewGiteaProvider(host string) *GiteaProvider {
 }
 
 // GetAuthorizeURL generates the authorization URL for Gitea.
-func (g *GiteaProvider) GetAuthorizeURL(clientID, state, redirectURI, scopes string) (string, error) {
+func (g *GiteaProvider) GetAuthorizeURL(clientID, state, redirectURI, scopes, codeChallenge, codeChallengeMethod string) (string, error) {
 	u, err := url.Parse(g.host + giteaAuthorizePath)
 	if err != nil {
 		return "", fmt.Errorf("failed to parse gitea authorize URL: %w", err)
@@ -52,12 +52,16 @@ func (g *GiteaProvider) GetAuthorizeURL(clientID, state, redirectURI, scopes str
 	if scopes != "" {
 		values.Set("scope", scopes)
 	}
+	if codeChallenge != "" {
+		values.Set("code_challenge", codeChallenge)
+		values.Set("code_challenge_method", codeChallengeMethod)
+	}
 	u.RawQuery = values.Encode()
 	return u.String(), nil
 }
 
 // ExchangeToken exchanges an authorization code for an access token.
-func (g *GiteaProvider) ExchangeToken(clientID, clientSecret, code, redirectURI string) (*Token, error) {
+func (g *GiteaProvider) ExchangeToken(clientID, clientSecret, code, redirectURI, codeVerifier string) (*Token, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
 	defer cancel()
 
@@ -69,6 +73,9 @@ func (g *GiteaProvider) ExchangeToken(clientID, clientSecret, code, redirectURI 
 	reqBody.Set("grant_type", "authorization_code")
 	if redirectURI != "" {
 		reqBody.Set("redirect_uri", redirectURI)
+	}
+	if codeVerifier != "" {
+		reqBody.Set("code_verifier", codeVerifier)
 	}
 
 	req, err := http.NewRequestWithContext(ctx, "POST", tokenURL, bytes.NewBufferString(reqBody.Encode()))

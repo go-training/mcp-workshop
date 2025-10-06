@@ -41,7 +41,7 @@ func NewGitLabProvider(host string) *GitLabProvider {
 }
 
 // GetAuthorizeURL generates the authorization URL for GitLab OAuth.
-func (g *GitLabProvider) GetAuthorizeURL(clientID, state, redirectURI, scopes string) (string, error) {
+func (g *GitLabProvider) GetAuthorizeURL(clientID, state, redirectURI, scopes, codeChallenge, codeChallengeMethod string) (string, error) {
 	u, err := url.Parse(g.host + gitlabAuthorizePath)
 	if err != nil {
 		return "", fmt.Errorf("failed to parse GitLab authorize URL: %w", err)
@@ -60,12 +60,17 @@ func (g *GitLabProvider) GetAuthorizeURL(clientID, state, redirectURI, scopes st
 		values.Set("scope", scopes)
 	}
 
+	if codeChallenge != "" {
+		values.Set("code_challenge", codeChallenge)
+		values.Set("code_challenge_method", codeChallengeMethod)
+	}
+
 	u.RawQuery = values.Encode()
 	return u.String(), nil
 }
 
 // ExchangeToken exchanges an authorization code for an access token.
-func (g *GitLabProvider) ExchangeToken(clientID, clientSecret, code, redirectURI string) (*Token, error) {
+func (g *GitLabProvider) ExchangeToken(clientID, clientSecret, code, redirectURI, codeVerifier string) (*Token, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
 	defer cancel()
 
@@ -75,6 +80,9 @@ func (g *GitLabProvider) ExchangeToken(clientID, clientSecret, code, redirectURI
 		"code":          code,
 		"grant_type":    "authorization_code",
 		"redirect_uri":  redirectURI,
+	}
+	if codeVerifier != "" {
+		reqBody["code_verifier"] = codeVerifier
 	}
 
 	jsonBody, err := json.Marshal(reqBody)

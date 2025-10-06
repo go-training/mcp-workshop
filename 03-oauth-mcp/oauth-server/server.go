@@ -215,12 +215,6 @@ func main() {
 			"code_challenge_method", codeChallengeMethod,
 		)
 
-		authURL, err := provider.GetAuthorizeURL(externalClientID, state, redirectURI, scope)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
-		}
-
 		// Save authorization code
 		authCode := &core.AuthorizationCode{
 			ClientID:            clientID,
@@ -237,6 +231,13 @@ func main() {
 			return
 		}
 
+		authURL, err := provider.GetAuthorizeURL(
+			externalClientID, state, redirectURI, scope, codeChallenge, codeChallengeMethod)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
 		c.Redirect(http.StatusFound, authURL)
 	})
 
@@ -245,24 +246,45 @@ func main() {
 			grantType := c.PostForm("grant_type")
 			code := c.PostForm("code")
 			clientID := c.PostForm("client_id")
+			clientSecret := c.PostForm("client_secret")
 			redirectURI := c.PostForm("redirect_uri")
-			// Log without sensitive information
-			slog.Info("Token request received", "grant_type", grantType, "client_id", clientID)
-			if grantType != "authorization_code" {
-				c.JSON(http.StatusBadRequest, gin.H{"error": "unsupported grant_type"})
-				return
-			}
+			codeVerifier := c.PostForm("code_verifier")
+
+			// Log all received parameters except client_secret
+			slog.Debug("Token request received",
+				"grant_type", grantType,
+				"code", code,
+				"client_id", clientID,
+				"client_secret", clientSecret,
+				"redirect_uri", redirectURI,
+				"code_verifier", codeVerifier,
+			)
+
 			if code == "" || clientID == "" || redirectURI == "" {
 				c.JSON(http.StatusBadRequest, gin.H{"error": "code, client_id, and redirect_uri are required"})
 				return
 			}
 
-			token, err := provider.ExchangeToken(externalClientID, externalClientSecret, code, redirectURI)
+			// Get authorization code
+			authCode, err := memoryStore.GetAuthorizationCode(c.Request.Context(), clientID)
+			if err != nil || authCode == nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "invalid code"})
+				return
+			}
+
+			// Validate redirect URI
+			if authCode.RedirectURI != redirectURI {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "invalid redirect_uri"})
+				return
+			}
+
+			token, err := provider.ExchangeToken(externalClientID, externalClientSecret, code, redirectURI, codeVerifier)
 			if err != nil {
 				slog.Error("Token exchange failed", "error", err)
 				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 				return
 			}
+
 			if token == nil {
 				slog.Error("Token exchange returned nil token without error")
 				c.JSON(http.StatusInternalServerError, gin.H{"error": "empty token response"})
@@ -285,6 +307,12 @@ func main() {
 				"user_login", userInfo.Login,
 				"user_avatar_url", userInfo.AvatarURL,
 			)
+
+			// Delete authorization code
+			if err := memoryStore.DeleteAuthorizationCode(c.Request.Context(), clientID); err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to delete authorization code", "details": err.Error()})
+				return
+			}
 
 			c.JSON(http.StatusOK, token)
 		})

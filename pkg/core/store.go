@@ -30,7 +30,8 @@ type Client struct {
 // Store defines the interface for storing and retrieving authorization codes.
 type Store interface {
 	SaveAuthorizationCode(ctx context.Context, code *AuthorizationCode) error
-	GetAuthorizationCode(ctx context.Context, code string) (*AuthorizationCode, error)
+	GetAuthorizationCode(ctx context.Context, clientID string) (*AuthorizationCode, error)
+	DeleteAuthorizationCode(ctx context.Context, clientID string) error
 
 	GetClient(ctx context.Context, clientID string) (*Client, error)
 	CreateClient(ctx context.Context, client *Client) error
