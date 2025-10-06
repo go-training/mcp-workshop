@@ -6,6 +6,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/base64"
+	"errors"
 	"flag"
 	"log/slog"
 	"net/http"
@@ -278,6 +279,27 @@ func main() {
 				return
 			}
 
+			// Validate code verifier if code challenge was provided
+			if authCode.CodeChallenge != "" {
+				if codeVerifier == "" {
+					c.JSON(http.StatusBadRequest, gin.H{"error": "code_verifier is required"})
+					return
+				}
+
+				// Compute challenge from verifier
+				computedChallenge, err := computeCodeChallenge(codeVerifier, authCode.CodeChallengeMethod)
+				if err != nil {
+					c.JSON(http.StatusBadRequest, gin.H{"error": "failed to compute code challenge", "details": err.Error()})
+					return
+				}
+
+				// Verify the challenge matches
+				if computedChallenge != authCode.CodeChallenge {
+					c.JSON(http.StatusBadRequest, gin.H{"error": "invalid code_verifier"})
+					return
+				}
+			}
+
 			token, err := provider.ExchangeToken(externalClientID, externalClientSecret, code, redirectURI, codeVerifier)
 			if err != nil {
 				slog.Error("Token exchange failed", "error", err)
@@ -447,4 +469,15 @@ func isValidRedirectURI(redirectURI string, allowedURIs []string) bool {
 	}
 
 	return false
+}
+
+func computeCodeChallenge(codeVerifier string, method string) (string, error) {
+	switch method {
+	case "plain":
+		return codeVerifier, nil
+	case "S256":
+		return transport.GenerateCodeChallenge(codeVerifier), nil
+	default:
+		return "", errors.New("unsupported code challenge method")
+	}
 }
