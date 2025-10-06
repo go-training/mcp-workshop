@@ -205,20 +205,20 @@ func main() {
 		corsMiddleware("Authorization", "Content-Type"), func(c *gin.Context) {
 			grantType := c.PostForm("grant_type")
 			code := c.PostForm("code")
-			clientIDParam := c.PostForm("client_id")
+			clientID := c.PostForm("client_id")
 			redirectURI := c.PostForm("redirect_uri")
 			// Log without sensitive information
-			slog.Info("Token request received", "grant_type", grantType, "client_id", clientIDParam)
+			slog.Info("Token request received", "grant_type", grantType, "client_id", clientID)
 			if grantType != "authorization_code" {
 				c.JSON(http.StatusBadRequest, gin.H{"error": "unsupported grant_type"})
 				return
 			}
-			if code == "" || clientIDParam == "" || redirectURI == "" {
+			if code == "" || clientID == "" || redirectURI == "" {
 				c.JSON(http.StatusBadRequest, gin.H{"error": "code, client_id, and redirect_uri are required"})
 				return
 			}
 
-			token, err := provider.ExchangeToken(clientIDParam, clientSecret, code, redirectURI)
+			token, err := provider.ExchangeToken(clientID, clientSecret, code, redirectURI)
 			if err != nil {
 				slog.Error("Token exchange failed", "error", err)
 				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
