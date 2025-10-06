@@ -155,23 +155,45 @@ func main() {
 		})
 
 	router.GET("/authorize", corsMiddleware("Authorization", "Content-Type"), func(c *gin.Context) {
-		clientIDParam := c.Query("client_id")
-		if clientIDParam == "" {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "client_id is required"})
-			return
-		}
-		state := c.Query("state")
-		if state == "" {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "state is required"})
-			return
-		}
-		// optional: scopes, redirect_uri
+		clientID := c.Query("client_id")
 		redirectURI := c.Query("redirect_uri")
-		scopes := c.Query("scope")
-		if scopes == "" {
-			scopes = "user" // default GitHub
+		responseType := c.Query("response_type")
+		scope := c.Query("scope")
+		state := c.Query("state")
+		codeChallenge := c.Query("code_challenge")
+		codeChallengeMethod := c.Query("code_challenge_method")
+
+		// Validate required parameters
+		if clientID == "" || redirectURI == "" || responseType == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "client_id, redirect_uri, and response_type are required"})
+			return
 		}
-		authURL, err := provider.GetAuthorizeURL(clientIDParam, state, redirectURI, scopes)
+
+		// Validate response type
+		if responseType != "code" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "unsupported response_type"})
+			return
+		}
+
+		// Validate code challenge if provided
+		if codeChallenge != "" {
+			if codeChallengeMethod != "plain" && codeChallengeMethod != "S256" {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "invalid code_challenge_method"})
+				return
+			}
+		}
+
+		slog.Debug("Authorization request received",
+			"client_id", clientID,
+			"redirect_uri", redirectURI,
+			"response_type", responseType,
+			"scope", scope,
+			"state", state,
+			"code_challenge", codeChallenge,
+			"code_challenge_method", codeChallengeMethod,
+		)
+
+		authURL, err := provider.GetAuthorizeURL(clientID, state, redirectURI, scope)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
