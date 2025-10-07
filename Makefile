@@ -95,7 +95,7 @@ test:
 # Run all tests with verbose output
 test-verbose:
 	@printf "$(GREEN)Running tests (verbose)...$(RESET)\n"
-	@go test ./... -v -short
+	@go test ./... -v
 
 # Run all tests with coverage
 test-cover:
