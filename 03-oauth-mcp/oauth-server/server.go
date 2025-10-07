@@ -82,6 +82,10 @@ func main() {
 	var giteaHost string
 	var gitlabHost string
 	var logLevel string
+	var storeType string
+	var redisAddr string
+	var redisPassword string
+	var redisDB int
 	flag.StringVar(&externalClientID, "client_id", "", "OAuth 2.0 Client ID")
 	flag.StringVar(&externalClientSecret, "client_secret", "", "OAuth 2.0 Client Secret")
 	flag.StringVar(&addr, "addr", ":8095", "address to listen on")
@@ -89,6 +93,10 @@ func main() {
 	flag.StringVar(&giteaHost, "gitea-host", "https://gitea.com", "Gitea host")
 	flag.StringVar(&gitlabHost, "gitlab-host", "https://gitlab.com", "GitLab host")
 	flag.StringVar(&logLevel, "log-level", "", "Log level (DEBUG, INFO, WARN, ERROR). Defaults to DEBUG in development, INFO in production")
+	flag.StringVar(&storeType, "store", "memory", "Store type: memory or redis")
+	flag.StringVar(&redisAddr, "redis-addr", "localhost:6379", "Redis address (only used when store=redis)")
+	flag.StringVar(&redisPassword, "redis-password", "", "Redis password (only used when store=redis)")
+	flag.IntVar(&redisDB, "redis-db", 0, "Redis database (only used when store=redis)")
 	flag.Parse()
 
 	// Initialize logger with the specified log level
@@ -116,8 +124,33 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Initialize Memory store
-	memoryStore := store.NewMemoryStore()
+	// Initialize store using factory pattern
+	storeConfig := store.Config{
+		Type: store.ParseStoreType(storeType),
+		Redis: store.RedisOptions{
+			Addr:     redisAddr,
+			Password: redisPassword,
+			DB:       redisDB,
+		},
+	}
+
+	oauthStore, err := store.NewStore(storeConfig)
+	if err != nil {
+		slog.Error("Failed to create store", "type", storeType, "error", err)
+		os.Exit(1)
+	}
+
+	// Log the store type being used
+	switch storeConfig.Type {
+	case store.StoreTypeMemory:
+		slog.Info("Using in-memory store")
+	case store.StoreTypeRedis:
+		slog.Info("Using Redis store", "addr", redisAddr, "db", redisDB)
+		// Ensure Redis connection is closed on shutdown
+		if redisStore, ok := oauthStore.(*store.RedisStore); ok {
+			defer redisStore.Close()
+		}
+	}
 
 	mcpServer := NewMCPServer()
 	router := gin.Default()
@@ -187,7 +220,7 @@ func main() {
 		}
 
 		// Get client
-		client, err := memoryStore.GetClient(c.Request.Context(), clientID)
+		client, err := oauthStore.GetClient(c.Request.Context(), clientID)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid client_id"})
 			return
@@ -228,7 +261,7 @@ func main() {
 			CreatedAt:           time.Now().Unix(),
 			ExpiresAt:           time.Now().Add(10 * time.Minute).Unix(),
 		}
-		if err := memoryStore.SaveAuthorizationCode(c.Request.Context(), authCode); err != nil {
+		if err := oauthStore.SaveAuthorizationCode(c.Request.Context(), authCode); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
@@ -268,7 +301,7 @@ func main() {
 			}
 
 			// Validate client credentials
-			client, err := memoryStore.GetClient(c.Request.Context(), clientID)
+			client, err := oauthStore.GetClient(c.Request.Context(), clientID)
 			if err != nil {
 				c.JSON(http.StatusBadRequest, gin.H{"error": "invalid client_id"})
 				return
@@ -281,7 +314,7 @@ func main() {
 			}
 
 			// Get authorization code
-			authCode, err := memoryStore.GetAuthorizationCode(c.Request.Context(), clientID)
+			authCode, err := oauthStore.GetAuthorizationCode(c.Request.Context(), clientID)
 			if err != nil || authCode == nil {
 				c.JSON(http.StatusBadRequest, gin.H{"error": "invalid code"})
 				return
@@ -345,7 +378,7 @@ func main() {
 			)
 
 			// Delete authorization code
-			if err := memoryStore.DeleteAuthorizationCode(c.Request.Context(), clientID); err != nil {
+			if err := oauthStore.DeleteAuthorizationCode(c.Request.Context(), clientID); err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to delete authorization code", "details": err.Error()})
 				return
 			}
@@ -394,7 +427,7 @@ func main() {
 				ClientSecretExpiresAt: time.Now().Add(1 * time.Minute).Unix(),
 			}
 
-			err := memoryStore.CreateClient(context.Background(), client)
+			err := oauthStore.CreateClient(context.Background(), client)
 			if err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create client", "details": err.Error()})
 				return
