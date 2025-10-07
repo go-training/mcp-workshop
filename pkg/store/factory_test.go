@@ -1,6 +1,7 @@
 package store
 
 import (
+	"context"
 	"testing"
 
 	"github.com/go-training/mcp-workshop/pkg/core"
@@ -166,10 +167,26 @@ func TestFactory_Create_Memory(t *testing.T) {
 }
 
 func TestFactory_Create_Redis(t *testing.T) {
+	ctx := context.Background()
+
+	// Setup Redis container using testcontainers
+	redisAddr, err := setupRedisContainer(ctx)
+	if err != nil {
+		t.Skipf("Failed to setup Redis container: %v", err)
+	}
+
+	// Clean up container on test completion
+	defer func() {
+		if redisContainer != nil {
+			_ = redisContainer.Terminate(ctx)
+			redisContainer = nil
+		}
+	}()
+
 	config := Config{
 		Type: StoreTypeRedis,
 		Redis: RedisOptions{
-			Addr: "localhost:6379",
+			Addr: redisAddr,
 		},
 	}
 	factory := NewFactory(config)
