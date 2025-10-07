@@ -1,8 +1,12 @@
 
 # Recursively build Go main binaries in all subdirectories (fixes relative path bug)
 # Usage:
-#   make        # build all binaries
-#   make clean  # remove all binaries
+#   make              # build all binaries
+#   make clean        # remove all binaries
+#   make test         # run all tests
+#   make test-verbose # run tests with verbose output
+#   make test-cover   # run tests with coverage report
+#   make test-store   # run store package tests only
 
 # Cross-platform color support
 SHELL := /bin/bash
@@ -42,11 +46,25 @@ endif
 GODIRS := $(shell find . -type f -name '*.go' | xargs grep -l '^package main' | xargs -n1 dirname | sort -u)
 BINS := $(foreach dir,$(GODIRS),$(notdir $(dir)))
 
-.PHONY: all clean $(BINS) test-colors
+.PHONY: all clean $(BINS) test test-verbose test-cover test-store test-colors help
 
 BIN_COUNT := $(words $(BINS))
 
 all: $(BINS)
+
+# Show help
+help:
+	@printf "$(GREEN)MCP Workshop Makefile$(RESET)\n"
+	@printf "\n$(YELLOW)Available targets:$(RESET)\n"
+	@printf "  $(GREEN)make$(RESET) or $(GREEN)make all$(RESET)     - Build all binaries ($(BIN_COUNT) binaries)\n"
+	@printf "  $(GREEN)make clean$(RESET)           - Remove all built binaries\n"
+	@printf "  $(GREEN)make test$(RESET)            - Run all tests\n"
+	@printf "  $(GREEN)make test-verbose$(RESET)    - Run all tests with verbose output\n"
+	@printf "  $(GREEN)make test-cover$(RESET)      - Run all tests with coverage report\n"
+	@printf "  $(GREEN)make test-store$(RESET)      - Run store package tests only\n"
+	@printf "  $(GREEN)make test-colors$(RESET)     - Test color output methods\n"
+	@printf "  $(GREEN)make help$(RESET)            - Show this help message\n"
+	@printf "\n$(YELLOW)Binaries:$(RESET) $(BINS)\n"
 
 # Test color output
 test-colors:
@@ -68,3 +86,27 @@ $(BINS):
 clean:
 	@printf "$(YELLOW)Cleaning binaries:$(RESET) $(BINS)\n"
 	@rm -f $(addprefix bin/,$(BINS))
+
+# Run all tests
+test:
+	@printf "$(GREEN)Running tests...$(RESET)\n"
+	@go test ./... -short
+
+# Run all tests with verbose output
+test-verbose:
+	@printf "$(GREEN)Running tests (verbose)...$(RESET)\n"
+	@go test ./... -v -short
+
+# Run all tests with coverage
+test-cover:
+	@printf "$(GREEN)Running tests with coverage...$(RESET)\n"
+	@go test ./... -cover -short
+	@printf "\n$(GREEN)Generating coverage report...$(RESET)\n"
+	@go test ./... -coverprofile=coverage.out -short
+	@go tool cover -func=coverage.out | tail -1
+	@printf "$(YELLOW)View HTML coverage report: $(RESET)go tool cover -html=coverage.out\n"
+
+# Run store package tests
+test-store:
+	@printf "$(GREEN)Running store package tests...$(RESET)\n"
+	@go test ./pkg/store/... -v

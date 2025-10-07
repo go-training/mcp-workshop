@@ -19,7 +19,7 @@ The Factory Pattern provides:
 
 ## Architecture
 
-```
+```txt
 ┌─────────────────────────────────────────────┐
 │           Application Code                   │
 │  (uses core.Store interface)                │
@@ -364,64 +364,64 @@ func TestFeature(t *testing.T) {
 
 1. Implement the `core.Store` interface:
 
-```go
-type MyStore struct {
-    // fields
-}
+   ```go
+   type MyStore struct {
+       // fields
+   }
 
-func (m *MyStore) SaveAuthorizationCode(ctx context.Context, code *core.AuthorizationCode) error {
-    // implementation
-}
+   func (m *MyStore) SaveAuthorizationCode(ctx context.Context, code *core.AuthorizationCode) error {
+       // implementation
+   }
 
-// ... implement other methods
-```
+   // ... implement other methods
+   ```
 
 2. Add store type constant:
 
-```go
-const StoreTypeMyStore StoreType = "mystore"
-```
+   ```go
+   const StoreTypeMyStore StoreType = "mystore"
+   ```
 
 3. Update factory:
 
-```go
-func (f *Factory) Create() (core.Store, error) {
-    switch f.config.Type {
-    case StoreTypeMemory:
-        return NewMemoryStore(), nil
-    case StoreTypeRedis:
-        return NewRedisStoreFromOptions(f.config.Redis)
-    case StoreTypeMyStore:
-        return NewMyStore(f.config.MyStore), nil
-    default:
-        return nil, fmt.Errorf("unsupported store type: %s", f.config.Type)
-    }
-}
-```
+   ```go
+   func (f *Factory) Create() (core.Store, error) {
+       switch f.config.Type {
+       case StoreTypeMemory:
+           return NewMemoryStore(), nil
+       case StoreTypeRedis:
+           return NewRedisStoreFromOptions(f.config.Redis)
+       case StoreTypeMyStore:
+           return NewMyStore(f.config.MyStore), nil
+       default:
+           return nil, fmt.Errorf("unsupported store type: %s", f.config.Type)
+       }
+   }
+   ```
 
 4. Add configuration helper:
 
-```go
-func MyStoreConfig(opts MyStoreOptions) Config {
-    return Config{
-        Type:    StoreTypeMyStore,
-        MyStore: opts,
-    }
-}
-```
+   ```go
+   func MyStoreConfig(opts MyStoreOptions) Config {
+       return Config{
+           Type:    StoreTypeMyStore,
+           MyStore: opts,
+       }
+   }
+   ```
 
 5. Update `IsValid()` method:
 
-```go
-func (t StoreType) IsValid() bool {
-    switch t {
-    case StoreTypeMemory, StoreTypeRedis, StoreTypeMyStore:
-        return true
-    default:
-        return false
-    }
-}
-```
+   ```go
+   func (t StoreType) IsValid() bool {
+       switch t {
+       case StoreTypeMemory, StoreTypeRedis, StoreTypeMyStore:
+           return true
+       default:
+           return false
+       }
+   }
+   ```
 
 ## See Also
 

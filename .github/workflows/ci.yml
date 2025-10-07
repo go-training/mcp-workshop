@@ -23,3 +23,6 @@ jobs:
 
       - name: Run make all
         run: make all
+
+      - name: Run make test
+        run: make test

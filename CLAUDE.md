@@ -45,7 +45,7 @@ The codebase follows a modular structure with shared packages and separate examp
 
 ### Building All Binaries
 
-The Makefile automates building all server binaries:
+The Makefile automates building all server binaries and running tests:
 
 ```bash
 # Build all binaries to bin/ directory
@@ -53,6 +53,21 @@ make
 
 # Clean all built binaries
 make clean
+
+# Run all tests
+make test
+
+# Run tests with verbose output
+make test-verbose
+
+# Run tests with coverage report
+make test-cover
+
+# Run store package tests only
+make test-store
+
+# Show all available targets
+make help
 ```
 
 ### Running Individual Modules

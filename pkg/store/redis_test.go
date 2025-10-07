@@ -2,44 +2,106 @@ package store
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
 	"github.com/go-training/mcp-workshop/pkg/core"
-
-	"github.com/redis/rueidis"
+	"github.com/testcontainers/testcontainers-go"
+	"github.com/testcontainers/testcontainers-go/wait"
 )
 
-// setupRedisStore creates a test Redis store connected to localhost:6379
-// Skip tests if Redis is not available
-func setupRedisStore(t *testing.T) *RedisStore {
-	t.Helper()
+// redisContainer holds the Redis testcontainer instance
+var redisContainer testcontainers.Container
 
-	opts := rueidis.ClientOption{
-		InitAddress: []string{"localhost:6379"},
+// setupRedisContainer creates a Redis container for testing
+func setupRedisContainer(ctx context.Context) (string, error) {
+	// Check if Docker is available
+	req := testcontainers.ContainerRequest{
+		Image:        "redis:7-alpine",
+		ExposedPorts: []string{"6379/tcp"},
+		WaitingFor:   wait.ForLog("Ready to accept connections").WithStartupTimeout(30 * time.Second),
 	}
 
-	store, err := NewRedisStoreFromClientOption(opts)
+	container, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
+		ContainerRequest: req,
+		Started:          true,
+	})
 	if err != nil {
-		t.Skipf("Redis not available, skipping test: %v", err)
+		// Return error with Docker-specific message
+		return "", fmt.Errorf("failed to start redis container (is Docker running?): %w", err)
+	}
+
+	redisContainer = container
+
+	// Get the host and port
+	host, err := container.Host(ctx)
+	if err != nil {
+		return "", fmt.Errorf("failed to get container host: %w", err)
+	}
+
+	port, err := container.MappedPort(ctx, "6379")
+	if err != nil {
+		return "", fmt.Errorf("failed to get container port: %w", err)
+	}
+
+	return fmt.Sprintf("%s:%s", host, port.Port()), nil
+}
+
+// setupRedisStore creates a test Redis store using testcontainers
+func setupRedisStore(t *testing.T) (*RedisStore, func()) {
+	t.Helper()
+
+	// Recover from panic (e.g., Docker not available)
+	defer func() {
+		if r := recover(); r != nil {
+			t.Skipf("Cannot setup Redis container (Docker may not be running): %v", r)
+		}
+	}()
+
+	ctx := context.Background()
+
+	// Start Redis container
+	redisAddr, err := setupRedisContainer(ctx)
+	if err != nil {
+		t.Skipf("Failed to setup Redis container: %v", err)
+		return nil, nil
+	}
+
+	// Create store
+	store, err := NewRedisStoreFromOptions(RedisOptions{
+		Addr: redisAddr,
+	})
+	if err != nil {
+		if redisContainer != nil {
+			_ = redisContainer.Terminate(ctx)
+		}
+		t.Skipf("Failed to create Redis store: %v", err)
+		return nil, nil
 	}
 
 	// Test connection
-	ctx := context.Background()
 	cmd := store.client.B().Ping().Build()
 	if err := store.client.Do(ctx, cmd).Error(); err != nil {
 		store.Close()
-		t.Skipf("Cannot connect to Redis, skipping test: %v", err)
+		if redisContainer != nil {
+			_ = redisContainer.Terminate(ctx)
+		}
+		t.Skipf("Cannot connect to Redis: %v", err)
+		return nil, nil
 	}
 
-	// Clean up before test
-	t.Cleanup(func() {
-		// Clean up test keys
+	// Cleanup function
+	cleanup := func() {
 		cleanupRedisKeys(t, store)
 		store.Close()
-	})
+		if redisContainer != nil {
+			_ = redisContainer.Terminate(ctx)
+			redisContainer = nil
+		}
+	}
 
-	return store
+	return store, cleanup
 }
 
 // cleanupRedisKeys removes all test keys from Redis
@@ -69,7 +131,12 @@ func cleanupRedisKeys(t *testing.T, store *RedisStore) {
 }
 
 func TestRedisStore_SaveAuthorizationCode(t *testing.T) {
-	store := setupRedisStore(t)
+	store, cleanup := setupRedisStore(t)
+	if store == nil {
+		return // Skip if Redis not available
+	}
+	defer cleanup()
+
 	ctx := context.Background()
 
 	tests := []struct {
@@ -124,7 +191,12 @@ func TestRedisStore_SaveAuthorizationCode(t *testing.T) {
 }
 
 func TestRedisStore_GetAuthorizationCode(t *testing.T) {
-	store := setupRedisStore(t)
+	store, cleanup := setupRedisStore(t)
+	if store == nil {
+		return // Skip if Redis not available
+	}
+	defer cleanup()
+
 	ctx := context.Background()
 
 	// Setup test data
@@ -186,7 +258,12 @@ func TestRedisStore_GetAuthorizationCode(t *testing.T) {
 }
 
 func TestRedisStore_GetAuthorizationCode_Expired(t *testing.T) {
-	store := setupRedisStore(t)
+	store, cleanup := setupRedisStore(t)
+	if store == nil {
+		return // Skip if Redis not available
+	}
+	defer cleanup()
+
 	ctx := context.Background()
 
 	// Create an expired code
@@ -209,7 +286,12 @@ func TestRedisStore_GetAuthorizationCode_Expired(t *testing.T) {
 }
 
 func TestRedisStore_DeleteAuthorizationCode(t *testing.T) {
-	store := setupRedisStore(t)
+	store, cleanup := setupRedisStore(t)
+	if store == nil {
+		return // Skip if Redis not available
+	}
+	defer cleanup()
+
 	ctx := context.Background()
 
 	// Setup test data
@@ -260,7 +342,12 @@ func TestRedisStore_DeleteAuthorizationCode(t *testing.T) {
 }
 
 func TestRedisStore_CreateClient(t *testing.T) {
-	store := setupRedisStore(t)
+	store, cleanup := setupRedisStore(t)
+	if store == nil {
+		return // Skip if Redis not available
+	}
+	defer cleanup()
+
 	ctx := context.Background()
 
 	tests := []struct {
@@ -315,7 +402,12 @@ func TestRedisStore_CreateClient(t *testing.T) {
 }
 
 func TestRedisStore_GetClient(t *testing.T) {
-	store := setupRedisStore(t)
+	store, cleanup := setupRedisStore(t)
+	if store == nil {
+		return // Skip if Redis not available
+	}
+	defer cleanup()
+
 	ctx := context.Background()
 
 	// Setup test data
@@ -378,7 +470,12 @@ func TestRedisStore_GetClient(t *testing.T) {
 }
 
 func TestRedisStore_UpdateClient(t *testing.T) {
-	store := setupRedisStore(t)
+	store, cleanup := setupRedisStore(t)
+	if store == nil {
+		return // Skip if Redis not available
+	}
+	defer cleanup()
+
 	ctx := context.Background()
 
 	// Setup test data
@@ -467,7 +564,12 @@ func TestRedisStore_UpdateClient(t *testing.T) {
 }
 
 func TestRedisStore_DeleteClient(t *testing.T) {
-	store := setupRedisStore(t)
+	store, cleanup := setupRedisStore(t)
+	if store == nil {
+		return // Skip if Redis not available
+	}
+	defer cleanup()
+
 	ctx := context.Background()
 
 	// Setup test data
@@ -516,7 +618,12 @@ func TestRedisStore_DeleteClient(t *testing.T) {
 }
 
 func TestRedisStore_ClientLifecycle(t *testing.T) {
-	store := setupRedisStore(t)
+	store, cleanup := setupRedisStore(t)
+	if store == nil {
+		return // Skip if Redis not available
+	}
+	defer cleanup()
+
 	ctx := context.Background()
 
 	// Create a client
@@ -574,7 +681,12 @@ func TestRedisStore_ClientLifecycle(t *testing.T) {
 }
 
 func TestRedisStore_AuthorizationCodeLifecycle(t *testing.T) {
-	store := setupRedisStore(t)
+	store, cleanup := setupRedisStore(t)
+	if store == nil {
+		return // Skip if Redis not available
+	}
+	defer cleanup()
+
 	ctx := context.Background()
 
 	// Create an authorization code

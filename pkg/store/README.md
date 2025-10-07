@@ -235,15 +235,22 @@ go test ./pkg/store/... -v
 # Run only memory store tests
 go test ./pkg/store/... -v -run TestMemoryStore
 
-# Run only redis store tests (requires Redis running on localhost:6379)
+# Run only redis store tests (requires Docker)
 go test ./pkg/store/... -v -run TestRedisStore
 ```
 
 ### Redis Test Requirements
 
-Redis tests require a Redis server running on `localhost:6379`. If Redis is not available, the tests will be automatically skipped.
+Redis tests use [testcontainers-go](https://golang.testcontainers.org/) to automatically start and manage Redis containers. This requires:
 
-To run Redis for testing:
+1. **Docker** must be installed and running
+2. **Docker daemon** must be accessible
+
+If Docker is not available, the tests will be automatically skipped with an informative message.
+
+#### Manual Redis Testing
+
+If you prefer to test against a manually started Redis instance:
 
 ```bash
 # Using Docker
@@ -252,6 +259,15 @@ docker run -d -p 6379:6379 redis:alpine
 # Or using docker-compose
 docker-compose up -d redis
 ```
+
+Then modify the test to connect to localhost:6379 instead of using testcontainers.
+
+#### Testcontainers Benefits
+
+- **Automatic setup**: No manual Redis installation required
+- **Isolation**: Each test run uses a fresh Redis instance
+- **Cleanup**: Containers are automatically removed after tests
+- **CI/CD friendly**: Works in any environment with Docker
 
 ## Error Handling
 
