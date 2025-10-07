@@ -19,7 +19,10 @@ The codebase follows a modular structure with shared packages and separate examp
   - `operation.go`: `RegisterCommonTool()` and `RegisterAuthTool()` functions
   - `echo/`, `caculator/`, `token/`: Individual tool implementations
 - **pkg/logger/**: Structured logging with slog
-- **pkg/store/**: In-memory store implementation for OAuth data
+- **pkg/store/**: Store implementations for OAuth data with factory pattern
+  - `memory.go`: In-memory store implementation with thread-safe operations
+  - `redis.go`: Redis-backed persistent store using rueidis client
+  - `factory.go`: Factory pattern for creating store instances (memory or redis)
 - **Module structure**: Each numbered directory (01-05) contains a complete working example
 
 ### Key Components
@@ -66,8 +69,11 @@ go run 01-basic-mcp/server.go -transport http -addr :8080
 # Token passthrough example
 go run 02-basic-token-passthrough/server.go -transport http
 
-# OAuth MCP server (requires client_id and client_secret)
+# OAuth MCP server with memory store (default)
 go run 03-oauth-mcp/oauth-server/server.go -client_id=<id> -client_secret=<secret> -addr :8095
+
+# OAuth MCP server with Redis store
+go run 03-oauth-mcp/oauth-server/server.go -client_id=<id> -client_secret=<secret> -addr :8095 -store redis -redis-addr localhost:6379
 
 # OAuth client example
 go run 03-oauth-mcp/oauth-client/main.go
@@ -91,6 +97,10 @@ OAuth server additional flags:
 - `-provider`: OAuth provider (github, gitea, gitlab)
 - `-gitea-host`: Gitea host URL (default: `https://gitea.com`)
 - `-gitlab-host`: GitLab host URL (default: `https://gitlab.com`)
+- `-store`: Store type (`memory` or `redis`) - defaults to `memory`
+- `-redis-addr`: Redis address (default: `localhost:6379`) - only used when `-store=redis`
+- `-redis-password`: Redis password - only used when `-store=redis`
+- `-redis-db`: Redis database number (default: 0) - only used when `-store=redis`
 
 ### Standard Go Commands
 
