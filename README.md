@@ -1,5 +1,7 @@
 # mcp-workshop
 
+[![build-and-test](https://github.com/go-training/mcp-workshop/actions/workflows/ci.yml/badge.svg)](https://github.com/go-training/mcp-workshop/actions/workflows/ci.yml)
+
 English | [繁體中文](README.zh-TW.md) | [簡體中文](README.zh-CN.md)
 
 ![cover](./images/cover.png)
@@ -34,19 +36,19 @@ This workshop consists of hands-on modules, each demonstrating a key aspect of b
 
 - **[01. Basic MCP Server](01-basic-mcp/):**
   - Minimal MCP server supporting both stdio and HTTP, using Gin. Shows server setup, tool registration, and logging/error handling best practices.
-  - *Key features:* Dual transport (stdio/HTTP), Gin integration, extensible tool registration.
+  - _Key features:_ Dual transport (stdio/HTTP), Gin integration, extensible tool registration.
 - **[02. Basic Token Passthrough](02-basic-token-passthrough/):**
   - Transparent authentication token passthrough for HTTP and stdio. Demonstrates context injection and tool development for authenticated requests.
-  - *Key features:* Token passthrough, context injection, example authenticated tools.
+  - _Key features:_ Token passthrough, context injection, example authenticated tools.
 - **[03. OAuth MCP Server](03-oauth-mcp/):**
   - MCP server with OAuth 2.0 protection. Example endpoints for auth, tokens, resource metadata; context-based token handling and authenticated API usage.
-  - *Key features:* OAuth 2.0 flow, protected endpoints, context-based token propagation, demo tools.
+  - _Key features:_ OAuth 2.0 flow, protected endpoints, context-based token propagation, demo tools.
 - **[04. Observability](04-observability/):**
   - Observability and tracing for MCP servers using OpenTelemetry and structured logging. Includes metrics, detailed traces, and error reporting.
-  - *Key features:* Tracing, structured logging, observability middleware, error reporting.
+  - _Key features:_ Tracing, structured logging, observability middleware, error reporting.
 - **[05. MCP Proxy](05-mcp-proxy/):**
   - Proxy server that aggregates multiple MCP servers behind one endpoint. Supports live streaming and centralizes configuration/security.
-  - *Key features:* Unified access, SSE/HTTP streaming, flexible config, improved security.
+  - _Key features:_ Unified access, SSE/HTTP streaming, flexible config, improved security.
 
 Refer to each module’s directory and `README.md` for detailed instructions and code examples
 
@@ -120,7 +122,7 @@ The following diagrams illustrate the OAuth flow within MCP, detailing the seque
 
 ![oauth](./images/oauth-flow-01.png)
 
-*Sequence diagram showing communication with each role separately:*
+_Sequence diagram showing communication with each role separately:_
 
 ![oauth-sequence](./images/oauth-flow-02.png)
 
