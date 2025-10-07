@@ -26,6 +26,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/mark3labs/mcp-go/client/transport"
 	"github.com/mark3labs/mcp-go/server"
+	"golang.org/x/oauth2"
 )
 
 // MCPServer wraps the underlying MCP server instance.
@@ -488,7 +489,7 @@ func computeCodeChallenge(codeVerifier string, method string) (string, error) {
 	case "plain":
 		return codeVerifier, nil
 	case "S256":
-		return transport.GenerateCodeChallenge(codeVerifier), nil
+		return oauth2.S256ChallengeFromVerifier(codeVerifier), nil
 	default:
 		return "", errors.New("unsupported code challenge method")
 	}
