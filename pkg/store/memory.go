@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"sync"
+	"time"
 
 	"github.com/go-training/mcp-workshop/pkg/core"
 )
@@ -58,16 +59,26 @@ func (m *MemoryStore) SaveAuthorizationCode(ctx context.Context, code *core.Auth
 
 // GetAuthorizationCode retrieves an authorization code from memory by its code string.
 // It returns ErrCodeNotFound if the code does not exist.
+// If the code has expired, it will be automatically deleted and ErrCodeNotFound is returned.
 func (m *MemoryStore) GetAuthorizationCode(ctx context.Context, clientID string) (*core.AuthorizationCode, error) {
 	if clientID == "" {
 		return nil, ErrEmptyClientID
 	}
 
 	m.mu.RLock()
-	defer m.mu.RUnlock()
-
 	authCode, exists := m.codes[clientID]
+	m.mu.RUnlock()
+
 	if !exists {
+		return nil, ErrCodeNotFound
+	}
+
+	// Check if the authorization code has expired
+	if time.Now().Unix() > authCode.ExpiresAt {
+		// Delete the expired code
+		m.mu.Lock()
+		delete(m.codes, clientID)
+		m.mu.Unlock()
 		return nil, ErrCodeNotFound
 	}
 
