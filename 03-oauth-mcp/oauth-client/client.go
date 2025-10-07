@@ -12,6 +12,7 @@ import (
 
 	"github.com/mark3labs/mcp-go/client"
 	"github.com/mark3labs/mcp-go/mcp"
+	"golang.org/x/oauth2"
 )
 
 const (
@@ -85,11 +86,8 @@ func main() {
 		}
 
 		// Generate PKCE code verifier and challenge
-		codeVerifier, err := client.GenerateCodeVerifier()
-		if err != nil {
-			fatalError("Failed to generate code verifier", err)
-		}
-		codeChallenge := client.GenerateCodeChallenge(codeVerifier)
+		codeVerifier := oauth2.GenerateVerifier()
+		codeChallenge := oauth2.S256ChallengeFromVerifier(codeVerifier)
 
 		// Generate state parameter
 		state, err := client.GenerateState()
