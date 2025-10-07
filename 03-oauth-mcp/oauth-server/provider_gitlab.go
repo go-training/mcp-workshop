@@ -58,6 +58,9 @@ func (g *GitLabProvider) GetAuthorizeURL(clientID, state, redirectURI, scopes, c
 
 	if scopes != "" {
 		values.Set("scope", scopes)
+	} else {
+		// GitLab default scope
+		values.Set("scope", "read_user")
 	}
 
 	if codeChallenge != "" {
