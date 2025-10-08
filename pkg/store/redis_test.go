@@ -20,7 +20,10 @@ func setupRedisContainer(ctx context.Context) (string, error) {
 	req := testcontainers.ContainerRequest{
 		Image:        "redis:7-alpine",
 		ExposedPorts: []string{"6379/tcp"},
-		WaitingFor:   wait.ForLog("Ready to accept connections").WithStartupTimeout(30 * time.Second),
+		WaitingFor: wait.ForAll(
+			wait.ForLog("Ready to accept connections").WithStartupTimeout(30 * time.Second),
+			wait.ForListeningPort("6379/tcp").WithStartupTimeout(30 * time.Second),
+		),
 	}
 
 	container, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
@@ -43,6 +46,11 @@ func setupRedisContainer(ctx context.Context) (string, error) {
 	port, err := container.MappedPort(ctx, "6379")
 	if err != nil {
 		return "", fmt.Errorf("failed to get container port: %w", err)
+	}
+
+	// Force IPv4 127.0.0.1 instead of localhost to avoid IPv6 issues
+	if host == "localhost" {
+		host = "127.0.0.1"
 	}
 
 	return fmt.Sprintf("%s:%s", host, port.Port()), nil
@@ -659,6 +667,9 @@ func TestRedisStore_ClientLifecycle(t *testing.T) {
 		t.Fatalf("UpdateClient() failed: %v", err)
 	}
 
+	// Small delay to allow cache invalidation to propagate
+	time.Sleep(100 * time.Millisecond)
+
 	// Verify update
 	updated, err := store.GetClient(ctx, client.ID)
 	if err != nil {
@@ -672,6 +683,9 @@ func TestRedisStore_ClientLifecycle(t *testing.T) {
 	if err := store.DeleteClient(ctx, client.ID); err != nil {
 		t.Fatalf("DeleteClient() failed: %v", err)
 	}
+
+	// Small delay to allow cache invalidation to propagate
+	time.Sleep(100 * time.Millisecond)
 
 	// Verify deletion
 	_, err = store.GetClient(ctx, client.ID)
@@ -719,6 +733,9 @@ func TestRedisStore_AuthorizationCodeLifecycle(t *testing.T) {
 	if err := store.DeleteAuthorizationCode(ctx, code.ClientID); err != nil {
 		t.Fatalf("DeleteAuthorizationCode() failed: %v", err)
 	}
+
+	// Small delay to allow cache invalidation to propagate
+	time.Sleep(100 * time.Millisecond)
 
 	// Verify deletion
 	_, err = store.GetAuthorizationCode(ctx, code.ClientID)
