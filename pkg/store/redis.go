@@ -99,14 +99,15 @@ func (r *RedisStore) SaveAuthorizationCode(ctx context.Context, code *core.Autho
 
 // GetAuthorizationCode retrieves an authorization code from Redis by client ID.
 // It returns ErrCodeNotFound if the code does not exist or has expired.
+// Uses client-side caching with 10 second TTL for better performance.
 func (r *RedisStore) GetAuthorizationCode(ctx context.Context, clientID string) (*core.AuthorizationCode, error) {
 	if clientID == "" {
 		return nil, ErrEmptyClientID
 	}
 
 	key := authCodePrefix + clientID
-	cmd := r.client.B().Get().Key(key).Build()
-	result, err := r.client.Do(ctx, cmd).ToString()
+	cmd := r.client.B().Get().Key(key).Cache()
+	result, err := r.client.DoCache(ctx, cmd, 10*time.Second).ToString()
 	if err != nil {
 		if rueidis.IsRedisNil(err) {
 			return nil, ErrCodeNotFound
@@ -152,14 +153,15 @@ func (r *RedisStore) DeleteAuthorizationCode(ctx context.Context, clientID strin
 
 // GetClient retrieves a client from Redis by its client ID.
 // It returns ErrClientNotFound if the client does not exist.
+// Uses client-side caching with 60 second TTL since clients change infrequently.
 func (r *RedisStore) GetClient(ctx context.Context, clientID string) (*core.Client, error) {
 	if clientID == "" {
 		return nil, ErrEmptyClientID
 	}
 
 	key := clientPrefix + clientID
-	cmd := r.client.B().Get().Key(key).Build()
-	result, err := r.client.Do(ctx, cmd).ToString()
+	cmd := r.client.B().Get().Key(key).Cache()
+	result, err := r.client.DoCache(ctx, cmd, 60*time.Second).ToString()
 	if err != nil {
 		if rueidis.IsRedisNil(err) {
 			return nil, ErrClientNotFound
