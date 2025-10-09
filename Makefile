@@ -46,7 +46,7 @@ endif
 GODIRS := $(shell find . -type f -name '*.go' | xargs grep -l '^package main' | xargs -n1 dirname | sort -u)
 BINS := $(foreach dir,$(GODIRS),$(notdir $(dir)))
 
-.PHONY: all clean $(BINS) test test-verbose test-cover test-store test-colors help
+.PHONY: all clean $(BINS) test test-verbose test-cover test-store test-colors mock help
 
 BIN_COUNT := $(words $(BINS))
 
@@ -63,6 +63,7 @@ help:
 	@printf "  $(GREEN)make test-cover$(RESET)      - Run all tests with coverage report\n"
 	@printf "  $(GREEN)make test-store$(RESET)      - Run store package tests only\n"
 	@printf "  $(GREEN)make test-colors$(RESET)     - Test color output methods\n"
+	@printf "  $(GREEN)make mock$(RESET)            - Generate mock files\n"
 	@printf "  $(GREEN)make help$(RESET)            - Show this help message\n"
 	@printf "\n$(YELLOW)Binaries:$(RESET) $(BINS)\n"
 
@@ -110,3 +111,10 @@ test-cover:
 test-store:
 	@printf "$(GREEN)Running store package tests...$(RESET)\n"
 	@go test ./pkg/store/... -v
+
+# Generate mock files
+mock:
+	@printf "$(GREEN)Generating mock files...$(RESET)\n"
+	@which mockgen > /dev/null || (printf "$(RED)mockgen not found. Installing...$(RESET)\n" && go install go.uber.org/mock/mockgen@latest)
+	@go generate ./pkg/mocks/...
+	@printf "$(GREEN)✔ Mock generation complete$(RESET)\n"
