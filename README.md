@@ -191,3 +191,11 @@ Some known vulnerabilities in MCP implementations:
 For more information, see [MCP Vulnerabilities][11].
 
 [11]: https://www.linkedin.com/posts/eordax_ai-mcp-genai-activity-7333057511651954688-sbNO
+
+## Reference Links
+
+- [An Introduction to MCP and Authorization](https://auth0.com/blog/an-introduction-to-mcp-and-authorization/)
+- [Auth0 for MCP Servers](https://auth0.com/ai/docs/mcp/auth-for-mcp)
+- [Understanding OAuth2 and implementing identity-aware MCP servers](https://heeki.medium.com/understanding-oauth2-and-implementing-identity-aware-mcp-servers-221a06b1a6cf)
+- [Enterprise-Ready MCP](https://aaronparecki.com/2025/05/12/27/enterprise-ready-mcp)
+- [[Session] Intro to OAuth for MCP Servers with Aaron Parecki, Okta](https://www.youtube.com/watch?v=mYKMwZcGynw)
