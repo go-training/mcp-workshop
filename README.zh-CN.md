@@ -21,6 +21,7 @@
   - [MCP Inspector 工具](#mcp-inspector-工具)
   - [MCP 中的 OAuth 协议](#mcp-中的-oauth-协议)
   - [MCP 漏洞](#mcp-漏洞)
+  - [参考链接](#参考链接)
 
 ![cover](./images/cover.png)
 

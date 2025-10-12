@@ -23,6 +23,7 @@ This workshop provides a comprehensive guide to building MCP ([Model Context Pro
   - [MCP Inspector Tool](#mcp-inspector-tool)
   - [OAuth Protocol in MCP](#oauth-protocol-in-mcp)
   - [MCP Vulnerabilities](#mcp-vulnerabilities)
+  - [Reference Links](#reference-links)
 
 ![cover](./images/cover.png)
 
