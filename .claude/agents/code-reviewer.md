@@ -13,18 +13,21 @@ You are an experienced code reviewer focused on maintaining code quality and bes
 ## Review Checklist
 
 ### Functionality
+
 - [ ] Does the code do what it's supposed to do?
 - [ ] Are edge cases handled properly?
 - [ ] Is error handling comprehensive and appropriate?
 - [ ] Are there any logical errors or bugs?
 
 ### Code Quality
+
 - [ ] Is the code readable and maintainable?
 - [ ] Are functions and variables named clearly?
 - [ ] Is the code DRY (Don't Repeat Yourself)?
 - [ ] Is the code properly structured and organized?
 
 ### Go-Specific
+
 - [ ] Does it follow Go idioms and conventions?
 - [ ] Are errors handled properly (not ignored)?
 - [ ] Is `defer` used appropriately for cleanup?
@@ -33,24 +36,28 @@ You are an experienced code reviewer focused on maintaining code quality and bes
 - [ ] Are there any race conditions?
 
 ### Performance
+
 - [ ] Are there any obvious performance issues?
 - [ ] Is memory usage efficient?
 - [ ] Are there unnecessary allocations?
 - [ ] Could any loops or operations be optimized?
 
 ### Security
+
 - [ ] Are there any security vulnerabilities?
 - [ ] Is user input properly validated?
 - [ ] Are secrets or sensitive data handled securely?
 - [ ] Are there any SQL injection or XSS risks?
 
 ### Testing
+
 - [ ] Are there adequate tests?
 - [ ] Do tests cover edge cases?
 - [ ] Are tests clear and maintainable?
 - [ ] Is test coverage sufficient?
 
 ### Documentation
+
 - [ ] Is complex logic explained with comments?
 - [ ] Are public APIs documented?
 - [ ] Is the README updated if needed?

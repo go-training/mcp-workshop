@@ -91,7 +91,7 @@ go run 03-oauth-mcp/oauth-server/server.go -client_id=<id> -client_secret=<secre
 go run 03-oauth-mcp/oauth-server/server.go -client_id=<id> -client_secret=<secret> -addr :8095 -store redis -redis-addr localhost:6379
 
 # OAuth client example
-go run 03-oauth-mcp/oauth-client/main.go
+go run 03-oauth-mcp/oauth-client/client.go
 
 # Observability server
 go run 04-observability/server.go -transport http
@@ -126,11 +126,19 @@ go mod tidy
 # Run tests
 go test ./...
 
+# Run tests with short flag (skips integration tests)
+go test ./... -short
+
 # Format code
 go fmt ./...
 
 # Vet code
 go vet ./...
+
+# Generate mocks (requires mockgen)
+make mock
+# or directly:
+go generate ./pkg/mocks/...
 ```
 
 ## MCP Configuration
@@ -161,10 +169,10 @@ The repository includes `mcp.json` in the root for MCP client integration:
 1. **01-basic-mcp**: Foundation - stdio/HTTP transports, tool registration, Gin router setup
 2. **02-basic-token-passthrough**: Context injection for auth tokens from HTTP headers or environment
 3. **03-oauth-mcp**: OAuth 2.0 authorization server with PKCE, token endpoints, and client/auth code storage
-   - `oauth-server/`: Full OAuth provider with `/authorize`, `/token`, `/resource_metadata` endpoints
-   - `oauth-client/`: Example OAuth client demonstrating the authorization flow
+   - `oauth-server/`: Full OAuth provider with `/.well-known/oauth-authorization-server`, `/.well-known/oauth-protected-resource`, `/authorize`, `/token`, `/register` endpoints
+   - `oauth-client/`: Example OAuth client demonstrating the full authorization flow with PKCE and local callback server
 4. **04-observability**: OpenTelemetry distributed tracing and structured logging with request IDs
-5. **05-mcp-proxy**: Proxy server aggregating multiple MCP servers with SSE streaming (config in `config.json`)
+5. **05-mcp-proxy**: Proxy server aggregating multiple MCP servers with HTTP streaming (config in `05-mcp-proxy/config.json`)
 
 ## Key Dependencies
 
@@ -175,6 +183,9 @@ The repository includes `mcp.json` in the root for MCP client integration:
 - `golang.org/x/oauth2`: OAuth 2.0 client and PKCE challenge handling
 - `go.opentelemetry.io/otel`: OpenTelemetry tracing SDK
 - `github.com/appleboy/graceful`: Graceful HTTP server shutdown
+- `github.com/redis/rueidis`: High-performance Redis client with client-side caching
+- `github.com/testcontainers/testcontainers-go`: Integration testing with Docker containers
+- `go.uber.org/mock`: Mock generation for testing (via `mockgen`)
 
 ## Working with Tools
 
@@ -206,3 +217,82 @@ s.AddTools(tool.Tools()...)
 - **HTTP timeouts**: Servers configure 10s read/write timeouts and 60s idle timeout
 - **MCP endpoint**: All HTTP servers expose MCP protocol at `/mcp` path with POST, GET, DELETE methods
 - **OAuth flow**: Module 03 implements full authorization code flow with PKCE, requiring external OAuth provider credentials
+- **Redis caching**: RedisStore uses rueidis client-side caching (10s for auth codes, 60s for clients)
+- **Redis TTL**: Authorization codes automatically expire based on their ExpiresAt field
+
+## Testing
+
+### Test Organization
+
+- **Unit tests**: Located alongside implementation files (`*_test.go`)
+- **Integration tests**: Use testcontainers for Redis testing (skipped with `-short` flag)
+- **Mock generation**: Store interface mocks in `pkg/mocks/` generated via `mockgen`
+
+### Running Tests
+
+```bash
+# Run all tests (including integration tests with Redis container)
+go test ./...
+
+# Run only fast unit tests (skip integration tests)
+go test ./... -short
+
+# Run with coverage
+make test-cover
+
+# Run store tests specifically (includes Redis integration tests)
+make test-store
+```
+
+### Store Implementations
+
+The `pkg/store` package provides two implementations of `core.Store`:
+
+**MemoryStore** (`memory.go`):
+
+- In-memory storage using Go maps with `sync.RWMutex` for thread safety
+- No persistence - data lost on restart
+- Ideal for development and testing
+
+**RedisStore** (`redis.go`):
+
+- Persistent storage using Redis via rueidis client
+- Client-side caching for performance (10s for codes, 60s for clients)
+- Automatic TTL handling for authorization codes
+- Use `Close()` to properly shutdown Redis connections
+
+**Factory Pattern** (`factory.go`):
+
+- `NewStore(config)`: Creates store from Config struct
+- `NewStoreFromType(storeType, redisOpts)`: Creates store from string type
+- `ParseStoreType(s)`: Converts string to StoreType enum
+- Default is memory store if invalid type provided
+
+## Development Guidelines
+
+This repository includes specialized agent guidelines in `.claude/agents/` for different development roles:
+
+### Code Developer Guidelines (`.claude/agents/code-developer.md`)
+
+- Write idiomatic Go code following standard conventions
+- Follow effective Go practices and use `gofmt` formatting
+- Handle errors properly - never ignore error returns
+- Keep functions small and focused (single responsibility)
+- Write tests alongside code when appropriate
+- Add comments for complex logic or non-obvious decisions
+
+### Code Reviewer Guidelines (`.claude/agents/code-reviewer.md`)
+
+- Review functionality, code quality, Go-specific idioms, performance, and security
+- Check for proper error handling, race conditions, and goroutine safety
+- Verify adequate test coverage and documentation
+- Provide feedback with severity levels: 🔴 Critical, 🟡 Important, 🟢 Minor, 💡 Learning
+
+### Code Tester Guidelines (`.claude/agents/code-tester.md`)
+
+- Use table-driven tests for multiple similar test cases
+- Follow Arrange-Act-Assert pattern with `t.Run()` subtests
+- Write tests that are Fast, Reliable, Isolated, Maintainable, and Thorough
+- Use `go.uber.org/mock/mockgen` for generating mocks from interfaces
+- Use testcontainers for integration tests with real services (e.g., Redis)
+- Test concurrent code with `-race` flag to detect race conditions
