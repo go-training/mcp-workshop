@@ -200,3 +200,7 @@ For more information, see [MCP Vulnerabilities][11].
 - [Understanding OAuth2 and implementing identity-aware MCP servers](https://heeki.medium.com/understanding-oauth2-and-implementing-identity-aware-mcp-servers-221a06b1a6cf)
 - [Enterprise-Ready MCP](https://aaronparecki.com/2025/05/12/27/enterprise-ready-mcp)
 - [[Session] Intro to OAuth for MCP Servers with Aaron Parecki, Okta](https://www.youtube.com/watch?v=mYKMwZcGynw)
+- [OAuth 2 PKCE Complete Explanation (Chinese)](https://blog.danielthank.me/posts/oauth-2-pkce-explained/)
+- [OAuth 2.0 Study Notes - PKCE (Chinese)](https://medium.com/@danielthank/oauth-2-0-%E5%AD%B8%E7%BF%92%E7%AD%86%E8%A8%98-pkce-f96fefcf4779)
+- [OAuth 2.0 Notes (2) Client Registration and Authentication (Chinese)](https://blog.yorkxin.org/posts/oauth2-2-cilent-registration/)
+- [OAuth 2.0 Authorization Code Flow Configuration Guide (Chinese)](https://www.cnblogs.com/myshowtime/p/15596630.html)
