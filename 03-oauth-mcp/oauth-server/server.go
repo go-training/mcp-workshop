@@ -32,11 +32,12 @@ import (
 // MCPServer wraps the underlying MCP server instance.
 type MCPServer struct {
 	server *server.MCPServer
+	store  core.Store
 }
 
 // NewMCPServer creates and configures a new MCPServer instance.
 // Registers the make_authenticated_request and show_auth_token tools.
-func NewMCPServer() *MCPServer {
+func NewMCPServer(store core.Store) *MCPServer {
 	mcpServer := server.NewMCPServer(
 		"example-oauth-server",
 		"1.0.0",
@@ -50,6 +51,7 @@ func NewMCPServer() *MCPServer {
 
 	return &MCPServer{
 		server: mcpServer,
+		store:  store,
 	}
 }
 
@@ -59,6 +61,7 @@ func (s *MCPServer) ServeHTTP() *server.StreamableHTTPServer {
 	return server.NewStreamableHTTPServer(s.server,
 		server.WithHeartbeatInterval(30*time.Second),
 		server.WithHTTPContextFunc(func(ctx context.Context, r *http.Request) context.Context {
+			ctx = core.WithStore(ctx, s.store)
 			ctx = core.AuthFromRequest(ctx, r)
 			return core.WithRequestID(ctx)
 		}),
@@ -69,6 +72,7 @@ func (s *MCPServer) ServeHTTP() *server.StreamableHTTPServer {
 // auth token from the environment into the context.
 func (s *MCPServer) ServeStdio() error {
 	return server.ServeStdio(s.server, server.WithStdioContextFunc(func(ctx context.Context) context.Context {
+		ctx = core.WithStore(ctx, s.store)
 		ctx = core.AuthFromEnv(ctx)
 		return core.WithRequestID(ctx)
 	}))
@@ -152,7 +156,7 @@ func main() {
 		}
 	}
 
-	mcpServer := NewMCPServer()
+	mcpServer := NewMCPServer(oauthStore)
 	router := gin.Default()
 	router.Use(corsMiddleware())
 

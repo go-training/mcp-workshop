@@ -3,6 +3,7 @@ package operation
 import (
 	"github.com/go-training/mcp-workshop/pkg/operation/caculator"
 	"github.com/go-training/mcp-workshop/pkg/operation/echo"
+	"github.com/go-training/mcp-workshop/pkg/operation/oauth"
 	"github.com/go-training/mcp-workshop/pkg/operation/token"
 
 	"github.com/mark3labs/mcp-go/server"
@@ -49,6 +50,10 @@ func RegisterAuthTool(s *server.MCPServer) {
 	tool.RegisterRead(server.ServerTool{
 		Tool:    token.ShowAuthTokenTool,
 		Handler: token.HandleShowAuthTokenTool,
+	})
+	tool.RegisterRead(server.ServerTool{
+		Tool:    oauth.ListOAuthClientsTool,
+		Handler: oauth.HandleListOAuthClientsTool,
 	})
 
 	s.AddTools(tool.Tools()...)

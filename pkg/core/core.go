@@ -16,6 +16,9 @@ type AuthKey struct{}
 // RequestIDKey is a custom context key type for storing the request ID in context.
 type RequestIDKey struct{}
 
+// StoreKey is a custom context key type for storing the Store in context.
+type StoreKey struct{}
+
 // WithRequestID returns a new context with a generated request ID set.
 func WithRequestID(ctx context.Context) context.Context {
 	reqID := uuid.New().String()
@@ -58,4 +61,19 @@ func LoggerFromCtx(ctx context.Context) *slog.Logger {
 		return slog.Default().With("request_id", reqID)
 	}
 	return slog.Default()
+}
+
+// WithStore returns a new context with the provided Store set.
+func WithStore(ctx context.Context, store Store) context.Context {
+	return context.WithValue(ctx, StoreKey{}, store)
+}
+
+// StoreFromContext retrieves the Store from the context.
+// Returns the Store interface if present, or an error if missing.
+func StoreFromContext(ctx context.Context) (Store, error) {
+	store, ok := ctx.Value(StoreKey{}).(Store)
+	if !ok {
+		return nil, fmt.Errorf("missing store")
+	}
+	return store, nil
 }
