@@ -259,3 +259,45 @@ func (r *RedisStore) DeleteClient(ctx context.Context, clientID string) error {
 
 	return nil
 }
+
+// GetClients retrieves all clients from Redis.
+// This operation can be expensive and should be used with caution in production.
+func (r *RedisStore) GetClients(ctx context.Context) ([]*core.Client, error) {
+	var clients []*core.Client
+	var cursor uint64
+
+	for {
+		scanCmd := r.client.B().Scan().Cursor(cursor).Match(clientPrefix + "*").Count(100).Build()
+		scanResult, err := r.client.Do(ctx, scanCmd).AsScanEntry()
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan for clients in redis: %w", err)
+		}
+
+		if len(scanResult.Elements) > 0 {
+			mgetCmd := r.client.B().Mget().Key(scanResult.Elements...).Build()
+			values, err := r.client.Do(ctx, mgetCmd).AsStrSlice()
+			if err != nil {
+				return nil, fmt.Errorf("failed to get clients from redis: %w", err)
+			}
+
+			for _, val := range values {
+				if val == "" {
+					continue
+				}
+				var client core.Client
+				if err := json.Unmarshal([]byte(val), &client); err != nil {
+					// Log or skip corrupted data
+					continue
+				}
+				clients = append(clients, &client)
+			}
+		}
+
+		cursor = scanResult.Cursor
+		if cursor == 0 {
+			break
+		}
+	}
+
+	return clients, nil
+}

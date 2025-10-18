@@ -176,3 +176,16 @@ func (m *MemoryStore) DeleteClient(ctx context.Context, clientID string) error {
 	delete(m.clients, clientID)
 	return nil
 }
+
+// GetClients retrieves all clients from memory.
+func (m *MemoryStore) GetClients(ctx context.Context) ([]*core.Client, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	clients := make([]*core.Client, 0, len(m.clients))
+	for _, client := range m.clients {
+		clients = append(clients, client)
+	}
+
+	return clients, nil
+}

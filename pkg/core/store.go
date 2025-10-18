@@ -34,6 +34,7 @@ type Store interface {
 	DeleteAuthorizationCode(ctx context.Context, clientID string) error
 
 	GetClient(ctx context.Context, clientID string) (*Client, error)
+	GetClients(ctx context.Context) ([]*Client, error)
 	CreateClient(ctx context.Context, client *Client) error
 	UpdateClient(ctx context.Context, client *Client) error
 	DeleteClient(ctx context.Context, clientID string) error

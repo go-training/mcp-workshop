@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"errors"
+	"fmt"
 	"sync"
 	"testing"
 	"time"
@@ -712,4 +713,93 @@ func TestMemoryStore_Client_Concurrent(t *testing.T) {
 	}
 
 	wg.Wait()
+}
+
+func TestMemoryStore_GetClients(t *testing.T) {
+	store := NewMemoryStore()
+	ctx := context.Background()
+
+	// 1. Test with an empty store
+	clients, err := store.GetClients(ctx)
+	if err != nil {
+		t.Fatalf("GetClients() on empty store failed: %v", err)
+	}
+	if len(clients) != 0 {
+		t.Fatalf("Expected 0 clients, got %d", len(clients))
+	}
+
+	// 2. Add some clients
+	client1 := &core.Client{ID: "client1", Secret: "secret1"}
+	client2 := &core.Client{ID: "client2", Secret: "secret2"}
+	if err := store.CreateClient(ctx, client1); err != nil {
+		t.Fatalf("Failed to create client1: %v", err)
+	}
+	if err := store.CreateClient(ctx, client2); err != nil {
+		t.Fatalf("Failed to create client2: %v", err)
+	}
+
+	// 3. Test with multiple clients
+	clients, err = store.GetClients(ctx)
+	if err != nil {
+		t.Fatalf("GetClients() with multiple clients failed: %v", err)
+	}
+	if len(clients) != 2 {
+		t.Fatalf("Expected 2 clients, got %d", len(clients))
+	}
+
+	// Check if the correct clients are returned (order is not guaranteed)
+	found1 := false
+	found2 := false
+	for _, c := range clients {
+		if c.ID == "client1" {
+			found1 = true
+		}
+		if c.ID == "client2" {
+			found2 = true
+		}
+	}
+	if !found1 || !found2 {
+		t.Errorf("Did not find all clients. Found1: %v, Found2: %v", found1, found2)
+	}
+}
+
+func TestMemoryStore_GetClients_LargeNumber(t *testing.T) {
+	store := NewMemoryStore()
+	ctx := context.Background()
+	numClients := 150
+
+	// Create a large number of clients
+	for i := 0; i < numClients; i++ {
+		client := &core.Client{
+			ID:     fmt.Sprintf("client-large-%d", i),
+			Secret: "secret",
+		}
+		if err := store.CreateClient(ctx, client); err != nil {
+			t.Fatalf("Failed to create client %d: %v", i, err)
+		}
+	}
+
+	// Get all clients
+	clients, err := store.GetClients(ctx)
+	if err != nil {
+		t.Fatalf("GetClients() with large number of clients failed: %v", err)
+	}
+
+	// Verify the number of clients retrieved
+	if len(clients) != numClients {
+		t.Errorf("Expected %d clients, but got %d", numClients, len(clients))
+	}
+
+	// Verify all clients are present
+	clientMap := make(map[string]bool)
+	for _, c := range clients {
+		clientMap[c.ID] = true
+	}
+
+	for i := 0; i < numClients; i++ {
+		clientID := fmt.Sprintf("client-large-%d", i)
+		if !clientMap[clientID] {
+			t.Errorf("Client %s was not found in the retrieved list", clientID)
+		}
+	}
 }

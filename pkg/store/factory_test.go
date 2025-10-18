@@ -67,19 +67,19 @@ func TestParseStoreType(t *testing.T) {
 
 func TestStoreType_String(t *testing.T) {
 	tests := []struct {
-		name     string
+		name      string
 		storeType StoreType
-		expected string
+		expected  string
 	}{
 		{
-			name:     "memory to string",
+			name:      "memory to string",
 			storeType: StoreTypeMemory,
-			expected: "memory",
+			expected:  "memory",
 		},
 		{
-			name:     "redis to string",
+			name:      "redis to string",
 			storeType: StoreTypeRedis,
-			expected: "redis",
+			expected:  "redis",
 		},
 	}
 
@@ -95,29 +95,29 @@ func TestStoreType_String(t *testing.T) {
 
 func TestStoreType_IsValid(t *testing.T) {
 	tests := []struct {
-		name     string
+		name      string
 		storeType StoreType
-		expected bool
+		expected  bool
 	}{
 		{
-			name:     "memory is valid",
+			name:      "memory is valid",
 			storeType: StoreTypeMemory,
-			expected: true,
+			expected:  true,
 		},
 		{
-			name:     "redis is valid",
+			name:      "redis is valid",
 			storeType: StoreTypeRedis,
-			expected: true,
+			expected:  true,
 		},
 		{
-			name:     "invalid type",
+			name:      "invalid type",
 			storeType: StoreType("invalid"),
-			expected: false,
+			expected:  false,
 		},
 		{
-			name:     "empty type",
+			name:      "empty type",
 			storeType: StoreType(""),
-			expected: false,
+			expected:  false,
 		},
 	}
 
@@ -167,6 +167,13 @@ func TestFactory_Create_Memory(t *testing.T) {
 }
 
 func TestFactory_Create_Redis(t *testing.T) {
+	// Recover from panic (e.g., Docker not available)
+	defer func() {
+		if r := recover(); r != nil {
+			t.Skipf("Cannot setup Redis container (Docker may not be running): %v", r)
+		}
+	}()
+
 	ctx := context.Background()
 
 	// Setup Redis container using testcontainers
@@ -192,7 +199,6 @@ func TestFactory_Create_Redis(t *testing.T) {
 	factory := NewFactory(config)
 
 	store, err := factory.Create()
-
 	// Skip test if Redis is not available
 	if err != nil {
 		t.Skipf("Redis not available, skipping test: %v", err)
@@ -231,9 +237,9 @@ func TestFactory_Create_InvalidType(t *testing.T) {
 
 func TestNewStore(t *testing.T) {
 	tests := []struct {
-		name    string
-		config  Config
-		wantErr bool
+		name     string
+		config   Config
+		wantErr  bool
 		wantType interface{}
 	}{
 		{
@@ -241,7 +247,7 @@ func TestNewStore(t *testing.T) {
 			config: Config{
 				Type: StoreTypeMemory,
 			},
-			wantErr: false,
+			wantErr:  false,
 			wantType: (*MemoryStore)(nil),
 		},
 		{
