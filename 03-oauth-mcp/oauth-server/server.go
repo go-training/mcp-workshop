@@ -71,11 +71,14 @@ func (s *MCPServer) ServeHTTP() *server.StreamableHTTPServer {
 // ServeStdio starts the MCP server using stdio transport, injecting the
 // auth token from the environment into the context.
 func (s *MCPServer) ServeStdio() error {
-	return server.ServeStdio(s.server, server.WithStdioContextFunc(func(ctx context.Context) context.Context {
-		ctx = core.WithStore(ctx, s.store)
-		ctx = core.AuthFromEnv(ctx)
-		return core.WithRequestID(ctx)
-	}))
+	return server.ServeStdio(
+		s.server,
+		server.WithStdioContextFunc(func(ctx context.Context) context.Context {
+			ctx = core.WithStore(ctx, s.store)
+			ctx = core.AuthFromEnv(ctx)
+			return core.WithRequestID(ctx)
+		}),
+	)
 }
 
 func main() {
@@ -96,10 +99,25 @@ func main() {
 	flag.StringVar(&providerName, "provider", "github", "OAuth provider: github, gitea, or gitlab")
 	flag.StringVar(&giteaHost, "gitea-host", "https://gitea.com", "Gitea host")
 	flag.StringVar(&gitlabHost, "gitlab-host", "https://gitlab.com", "GitLab host")
-	flag.StringVar(&logLevel, "log-level", "", "Log level (DEBUG, INFO, WARN, ERROR). Defaults to DEBUG in development, INFO in production")
+	flag.StringVar(
+		&logLevel,
+		"log-level",
+		"",
+		"Log level (DEBUG, INFO, WARN, ERROR). Defaults to DEBUG in development, INFO in production",
+	)
 	flag.StringVar(&storeType, "store", "memory", "Store type: memory or redis")
-	flag.StringVar(&redisAddr, "redis-addr", "localhost:6379", "Redis address (only used when store=redis)")
-	flag.StringVar(&redisPassword, "redis-password", "", "Redis password (only used when store=redis)")
+	flag.StringVar(
+		&redisAddr,
+		"redis-addr",
+		"localhost:6379",
+		"Redis address (only used when store=redis)",
+	)
+	flag.StringVar(
+		&redisPassword,
+		"redis-password",
+		"",
+		"Redis password (only used when store=redis)",
+	)
 	flag.IntVar(&redisDB, "redis-db", 0, "Redis database (only used when store=redis)")
 	flag.Parse()
 
@@ -189,15 +207,19 @@ func main() {
 			}
 
 			metadata := transport.AuthServerMetadata{
-				Issuer:                            "http://localhost" + addr,
-				AuthorizationEndpoint:             "http://localhost" + addr + "/authorize",
-				TokenEndpoint:                     "http://localhost" + addr + "/token",
-				RegistrationEndpoint:              "http://localhost" + addr + "/register",
-				ScopesSupported:                   scopesSupported,
-				ResponseTypesSupported:            []string{"code"},
-				GrantTypesSupported:               []string{"authorization_code", "refresh_token"},
-				TokenEndpointAuthMethodsSupported: []string{"none", "client_secret_basic", "client_secret_post"},
-				CodeChallengeMethodsSupported:     []string{"plain", "S256"}, // for inspector
+				Issuer:                 "http://localhost" + addr,
+				AuthorizationEndpoint:  "http://localhost" + addr + "/authorize",
+				TokenEndpoint:          "http://localhost" + addr + "/token",
+				RegistrationEndpoint:   "http://localhost" + addr + "/register",
+				ScopesSupported:        scopesSupported,
+				ResponseTypesSupported: []string{"code"},
+				GrantTypesSupported:    []string{"authorization_code", "refresh_token"},
+				TokenEndpointAuthMethodsSupported: []string{
+					"none",
+					"client_secret_basic",
+					"client_secret_post",
+				},
+				CodeChallengeMethodsSupported: []string{"plain", "S256"}, // for inspector
 			}
 			c.JSON(http.StatusOK, metadata)
 		})
@@ -213,7 +235,10 @@ func main() {
 
 		// Validate required parameters
 		if clientID == "" || redirectURI == "" || responseType == "" {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "client_id, redirect_uri, and response_type are required"})
+			c.JSON(
+				http.StatusBadRequest,
+				gin.H{"error": "client_id, redirect_uri, and response_type are required"},
+			)
 			return
 		}
 
@@ -300,7 +325,10 @@ func main() {
 			)
 
 			if code == "" || clientID == "" || redirectURI == "" {
-				c.JSON(http.StatusBadRequest, gin.H{"error": "code, client_id, and redirect_uri are required"})
+				c.JSON(
+					http.StatusBadRequest,
+					gin.H{"error": "code, client_id, and redirect_uri are required"},
+				)
 				return
 			}
 
@@ -338,9 +366,15 @@ func main() {
 				}
 
 				// Compute challenge from verifier
-				computedChallenge, err := computeCodeChallenge(codeVerifier, authCode.CodeChallengeMethod)
+				computedChallenge, err := computeCodeChallenge(
+					codeVerifier,
+					authCode.CodeChallengeMethod,
+				)
 				if err != nil {
-					c.JSON(http.StatusBadRequest, gin.H{"error": "failed to compute code challenge", "details": err.Error()})
+					c.JSON(
+						http.StatusBadRequest,
+						gin.H{"error": "failed to compute code challenge", "details": err.Error()},
+					)
 					return
 				}
 
@@ -351,7 +385,13 @@ func main() {
 				}
 			}
 
-			token, err := provider.ExchangeToken(externalClientID, externalClientSecret, code, redirectURI, codeVerifier)
+			token, err := provider.ExchangeToken(
+				externalClientID,
+				externalClientSecret,
+				code,
+				redirectURI,
+				codeVerifier,
+			)
 			if err != nil {
 				slog.Error("Token exchange failed", "error", err)
 				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -369,7 +409,10 @@ func main() {
 			userInfo, userErr := provider.FetchUserInfo(accessToken)
 			if userErr != nil {
 				slog.Error("Failed to fetch user info", "error", userErr)
-				c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch user info", "details": userErr.Error()})
+				c.JSON(
+					http.StatusInternalServerError,
+					gin.H{"error": "failed to fetch user info", "details": userErr.Error()},
+				)
 				return
 			}
 
@@ -383,7 +426,10 @@ func main() {
 
 			// Delete authorization code
 			if err := oauthStore.DeleteAuthorizationCode(c.Request.Context(), clientID); err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to delete authorization code", "details": err.Error()})
+				c.JSON(
+					http.StatusInternalServerError,
+					gin.H{"error": "failed to delete authorization code", "details": err.Error()},
+				)
 				return
 			}
 
@@ -433,7 +479,10 @@ func main() {
 
 			err := oauthStore.CreateClient(context.Background(), client)
 			if err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create client", "details": err.Error()})
+				c.JSON(
+					http.StatusInternalServerError,
+					gin.H{"error": "failed to create client", "details": err.Error()},
+				)
 				return
 			}
 

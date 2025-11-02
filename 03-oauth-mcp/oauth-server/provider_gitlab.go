@@ -41,7 +41,9 @@ func NewGitLabProvider(host string) *GitLabProvider {
 }
 
 // GetAuthorizeURL generates the authorization URL for GitLab OAuth.
-func (g *GitLabProvider) GetAuthorizeURL(clientID, state, redirectURI, scopes, codeChallenge, codeChallengeMethod string) (string, error) {
+func (g *GitLabProvider) GetAuthorizeURL(
+	clientID, state, redirectURI, scopes, codeChallenge, codeChallengeMethod string,
+) (string, error) {
 	u, err := url.Parse(g.host + gitlabAuthorizePath)
 	if err != nil {
 		return "", fmt.Errorf("failed to parse GitLab authorize URL: %w", err)
@@ -73,7 +75,9 @@ func (g *GitLabProvider) GetAuthorizeURL(clientID, state, redirectURI, scopes, c
 }
 
 // ExchangeToken exchanges an authorization code for an access token.
-func (g *GitLabProvider) ExchangeToken(clientID, clientSecret, code, redirectURI, codeVerifier string) (*Token, error) {
+func (g *GitLabProvider) ExchangeToken(
+	clientID, clientSecret, code, redirectURI, codeVerifier string,
+) (*Token, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
 	defer cancel()
 
@@ -114,7 +118,11 @@ func (g *GitLabProvider) ExchangeToken(clientID, clientSecret, code, redirectURI
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("GitLab token exchange failed with status %d: %s", resp.StatusCode, string(body))
+		return nil, fmt.Errorf(
+			"GitLab token exchange failed with status %d: %s",
+			resp.StatusCode,
+			string(body),
+		)
 	}
 
 	var tokenResp transport.Token
@@ -157,7 +165,11 @@ func (g *GitLabProvider) FetchUserInfo(accessToken string) (*UserInfo, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to read GitLab error response: %w", err)
 		}
-		return nil, fmt.Errorf("failed to fetch GitLab user info with status %d: %s", resp.StatusCode, string(body))
+		return nil, fmt.Errorf(
+			"failed to fetch GitLab user info with status %d: %s",
+			resp.StatusCode,
+			string(body),
+		)
 	}
 
 	// Read and debug log the raw JSON body

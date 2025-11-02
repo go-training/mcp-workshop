@@ -37,7 +37,9 @@ func NewGiteaProvider(host string) *GiteaProvider {
 }
 
 // GetAuthorizeURL generates the authorization URL for Gitea.
-func (g *GiteaProvider) GetAuthorizeURL(clientID, state, redirectURI, scopes, codeChallenge, codeChallengeMethod string) (string, error) {
+func (g *GiteaProvider) GetAuthorizeURL(
+	clientID, state, redirectURI, scopes, codeChallenge, codeChallengeMethod string,
+) (string, error) {
 	u, err := url.Parse(g.host + giteaAuthorizePath)
 	if err != nil {
 		return "", fmt.Errorf("failed to parse gitea authorize URL: %w", err)
@@ -61,7 +63,9 @@ func (g *GiteaProvider) GetAuthorizeURL(clientID, state, redirectURI, scopes, co
 }
 
 // ExchangeToken exchanges an authorization code for an access token.
-func (g *GiteaProvider) ExchangeToken(clientID, clientSecret, code, redirectURI, codeVerifier string) (*Token, error) {
+func (g *GiteaProvider) ExchangeToken(
+	clientID, clientSecret, code, redirectURI, codeVerifier string,
+) (*Token, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
 	defer cancel()
 
@@ -78,7 +82,12 @@ func (g *GiteaProvider) ExchangeToken(clientID, clientSecret, code, redirectURI,
 		reqBody.Set("code_verifier", codeVerifier)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, "POST", tokenURL, bytes.NewBufferString(reqBody.Encode()))
+	req, err := http.NewRequestWithContext(
+		ctx,
+		"POST",
+		tokenURL,
+		bytes.NewBufferString(reqBody.Encode()),
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -97,7 +106,11 @@ func (g *GiteaProvider) ExchangeToken(clientID, clientSecret, code, redirectURI,
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("gitea token exchange failed with status %d: %s", resp.StatusCode, string(body))
+		return nil, fmt.Errorf(
+			"gitea token exchange failed with status %d: %s",
+			resp.StatusCode,
+			string(body),
+		)
 	}
 
 	var tokenResp transport.Token
@@ -139,7 +152,11 @@ func (g *GiteaProvider) FetchUserInfo(accessToken string) (*UserInfo, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to read gitea error response: %w", err)
 		}
-		return nil, fmt.Errorf("failed to fetch gitea user info with status %d: %s", resp.StatusCode, string(body))
+		return nil, fmt.Errorf(
+			"failed to fetch gitea user info with status %d: %s",
+			resp.StatusCode,
+			string(body),
+		)
 	}
 
 	// Read and debug log the raw JSON body

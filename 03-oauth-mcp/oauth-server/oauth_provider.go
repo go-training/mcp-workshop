@@ -21,7 +21,9 @@ type UserInfo struct {
 }
 
 type OAuthProvider interface {
-	GetAuthorizeURL(clientID, state, redirectURI, scopes, codeChallenge, codeChallengeMethod string) (string, error)
+	GetAuthorizeURL(
+		clientID, state, redirectURI, scopes, codeChallenge, codeChallengeMethod string,
+	) (string, error)
 	ExchangeToken(clientID, clientSecret, code, redirectURI, codeVerifier string) (*Token, error)
 	FetchUserInfo(accessToken string) (*UserInfo, error)
 }

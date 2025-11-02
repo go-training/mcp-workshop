@@ -35,7 +35,9 @@ func NewGitHubProvider() *GitHubProvider {
 	}
 }
 
-func (g *GitHubProvider) GetAuthorizeURL(clientID, state, redirectURI, scopes, codeChallenge, codeChallengeMethod string) (string, error) {
+func (g *GitHubProvider) GetAuthorizeURL(
+	clientID, state, redirectURI, scopes, codeChallenge, codeChallengeMethod string,
+) (string, error) {
 	u, err := url.Parse(githubAuthorizeURL)
 	if err != nil {
 		return "", fmt.Errorf("failed to parse authorize URL: %w", err)
@@ -57,7 +59,9 @@ func (g *GitHubProvider) GetAuthorizeURL(clientID, state, redirectURI, scopes, c
 	return u.String(), nil
 }
 
-func (g *GitHubProvider) ExchangeToken(clientID, clientSecret, code, redirectURI, codeVerifier string) (*Token, error) {
+func (g *GitHubProvider) ExchangeToken(
+	clientID, clientSecret, code, redirectURI, codeVerifier string,
+) (*Token, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
 	defer cancel()
 
@@ -88,7 +92,11 @@ func (g *GitHubProvider) ExchangeToken(clientID, clientSecret, code, redirectURI
 		return nil, fmt.Errorf("failed to read response body: %w", err)
 	}
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("token exchange failed with status %d: %s", resp.StatusCode, string(body))
+		return nil, fmt.Errorf(
+			"token exchange failed with status %d: %s",
+			resp.StatusCode,
+			string(body),
+		)
 	}
 	var tokenResp transport.Token
 	if err := json.Unmarshal(body, &tokenResp); err != nil {
@@ -125,7 +133,11 @@ func (g *GitHubProvider) FetchUserInfo(accessToken string) (*UserInfo, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to read error response: %w", err)
 		}
-		return nil, fmt.Errorf("failed to fetch user info with status %d: %s", resp.StatusCode, string(body))
+		return nil, fmt.Errorf(
+			"failed to fetch user info with status %d: %s",
+			resp.StatusCode,
+			string(body),
+		)
 	}
 
 	// Read and debug log the raw JSON body
