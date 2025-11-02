@@ -121,7 +121,12 @@ func main() {
 		}
 
 		slog.Info("Exchanging authorization code for token...")
-		err = oauthHandler.ProcessAuthorizationResponse(context.Background(), code, state, codeVerifier)
+		err = oauthHandler.ProcessAuthorizationResponse(
+			context.Background(),
+			code,
+			state,
+			codeVerifier,
+		)
 		if err != nil {
 			fatalError("Failed to process authorization response", err)
 		}
