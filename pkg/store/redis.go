@@ -67,7 +67,10 @@ func (r *RedisStore) Close() {
 
 // SaveAuthorizationCode stores an authorization code in Redis with TTL.
 // It returns an error if the code is nil or the client ID is empty.
-func (r *RedisStore) SaveAuthorizationCode(ctx context.Context, code *core.AuthorizationCode) error {
+func (r *RedisStore) SaveAuthorizationCode(
+	ctx context.Context,
+	code *core.AuthorizationCode,
+) error {
 	if code == nil {
 		return ErrNilAuthorizationCode
 	}
@@ -100,7 +103,10 @@ func (r *RedisStore) SaveAuthorizationCode(ctx context.Context, code *core.Autho
 // GetAuthorizationCode retrieves an authorization code from Redis by client ID.
 // It returns ErrCodeNotFound if the code does not exist or has expired.
 // Uses client-side caching with 10 second TTL for better performance.
-func (r *RedisStore) GetAuthorizationCode(ctx context.Context, clientID string) (*core.AuthorizationCode, error) {
+func (r *RedisStore) GetAuthorizationCode(
+	ctx context.Context,
+	clientID string,
+) (*core.AuthorizationCode, error) {
 	if clientID == "" {
 		return nil, ErrEmptyClientID
 	}

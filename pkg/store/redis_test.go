@@ -564,7 +564,11 @@ func TestRedisStore_UpdateClient(t *testing.T) {
 					t.Errorf("GetClient() after update failed: %v", err)
 				}
 				if updated.Secret != tt.client.Secret {
-					t.Errorf("UpdateClient() secret = %v, want %v", updated.Secret, tt.client.Secret)
+					t.Errorf(
+						"UpdateClient() secret = %v, want %v",
+						updated.Secret,
+						tt.client.Secret,
+					)
 				}
 			}
 		})
@@ -953,7 +957,11 @@ func TestRedisStore_GetClient_CacheInvalidation(t *testing.T) {
 		t.Fatalf("GetClient() after update failed: %v", err)
 	}
 	if retrieved2.Scope != "read write admin" {
-		t.Errorf("Retrieved client scope after update = %v, want %v", retrieved2.Scope, "read write admin")
+		t.Errorf(
+			"Retrieved client scope after update = %v, want %v",
+			retrieved2.Scope,
+			"read write admin",
+		)
 	}
 
 	t.Log("Cache invalidation working correctly after client update")

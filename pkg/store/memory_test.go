@@ -91,7 +91,11 @@ func TestMemoryStore_SaveAuthorizationCode(t *testing.T) {
 					t.Errorf("Failed to retrieve saved code: %v", getErr)
 				}
 				if savedCode.Code != tt.code.Code {
-					t.Errorf("Retrieved code mismatch: got %v, want %v", savedCode.Code, tt.code.Code)
+					t.Errorf(
+						"Retrieved code mismatch: got %v, want %v",
+						savedCode.Code,
+						tt.code.Code,
+					)
 				}
 			}
 		})
@@ -182,8 +186,13 @@ func TestMemoryStore_GetAuthorizationCode(t *testing.T) {
 				t.Errorf("Expected no authorization code, but got %v", gotCode)
 			}
 
-			if tt.wantCode && gotCode != nil && tt.setupCode != nil && gotCode.Code != tt.setupCode.Code {
-				t.Errorf("GetAuthorizationCode() code = %v, want %v", gotCode.Code, tt.setupCode.Code)
+			if tt.wantCode && gotCode != nil && tt.setupCode != nil &&
+				gotCode.Code != tt.setupCode.Code {
+				t.Errorf(
+					"GetAuthorizationCode() code = %v, want %v",
+					gotCode.Code,
+					tt.setupCode.Code,
+				)
 			}
 		})
 	}
@@ -267,11 +276,19 @@ func TestMemoryStore_UpdateExistingCode(t *testing.T) {
 	}
 
 	if retrievedCode.Code != "updated_code_456" {
-		t.Errorf("Code was not updated. Got Code %v, want %v", retrievedCode.Code, "updated_code_456")
+		t.Errorf(
+			"Code was not updated. Got Code %v, want %v",
+			retrievedCode.Code,
+			"updated_code_456",
+		)
 	}
 
 	if retrievedCode.RedirectURI != "https://updated.com/callback" {
-		t.Errorf("RedirectURI was not updated. Got %v, want %v", retrievedCode.RedirectURI, "https://updated.com/callback")
+		t.Errorf(
+			"RedirectURI was not updated. Got %v, want %v",
+			retrievedCode.RedirectURI,
+			"https://updated.com/callback",
+		)
 	}
 
 	if len(retrievedCode.Scope) != 2 {
@@ -458,7 +475,11 @@ func TestMemoryStore_GetClient(t *testing.T) {
 					t.Errorf("GetClient() ID = %v, want %v", gotClient.ID, tt.setupClient.ID)
 				}
 				if gotClient.Secret != tt.setupClient.Secret {
-					t.Errorf("GetClient() Secret = %v, want %v", gotClient.Secret, tt.setupClient.Secret)
+					t.Errorf(
+						"GetClient() Secret = %v, want %v",
+						gotClient.Secret,
+						tt.setupClient.Secret,
+					)
 				}
 			}
 		})
@@ -518,7 +539,11 @@ func TestMemoryStore_CreateClient(t *testing.T) {
 					t.Errorf("Failed to retrieve created client: %v", getErr)
 				}
 				if gotClient.ID != tt.client.ID {
-					t.Errorf("Retrieved client ID mismatch: got %v, want %v", gotClient.ID, tt.client.ID)
+					t.Errorf(
+						"Retrieved client ID mismatch: got %v, want %v",
+						gotClient.ID,
+						tt.client.ID,
+					)
 				}
 			}
 		})
@@ -601,10 +626,18 @@ func TestMemoryStore_UpdateClient(t *testing.T) {
 					t.Errorf("Failed to retrieve updated client: %v", getErr)
 				}
 				if gotClient.Secret != tt.updateClient.Secret {
-					t.Errorf("Client secret was not updated. Got %v, want %v", gotClient.Secret, tt.updateClient.Secret)
+					t.Errorf(
+						"Client secret was not updated. Got %v, want %v",
+						gotClient.Secret,
+						tt.updateClient.Secret,
+					)
 				}
 				if gotClient.Scope != tt.updateClient.Scope {
-					t.Errorf("Client scope was not updated. Got %v, want %v", gotClient.Scope, tt.updateClient.Scope)
+					t.Errorf(
+						"Client scope was not updated. Got %v, want %v",
+						gotClient.Scope,
+						tt.updateClient.Scope,
+					)
 				}
 			}
 		})

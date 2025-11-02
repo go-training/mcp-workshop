@@ -67,10 +67,13 @@ func (s *MCPServer) ServeHTTP() *server.StreamableHTTPServer {
 // ServeStdio starts the MCP server using stdio transport, injecting the
 // auth token from the environment into the context.
 func (s *MCPServer) ServeStdio() error {
-	return server.ServeStdio(s.server, server.WithStdioContextFunc(func(ctx context.Context) context.Context {
-		ctx = core.AuthFromEnv(ctx)
-		return core.WithRequestID(ctx)
-	}))
+	return server.ServeStdio(
+		s.server,
+		server.WithStdioContextFunc(func(ctx context.Context) context.Context {
+			ctx = core.AuthFromEnv(ctx)
+			return core.WithRequestID(ctx)
+		}),
+	)
 }
 
 func main() {

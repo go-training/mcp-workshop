@@ -100,7 +100,12 @@ func main() {
 	var addr string
 	flag.StringVar(&addr, "addr", ":8080", "address to listen on")
 	// Support both short (-t) and long (--transport) flags for convenience.
-	flag.StringVar(&transport, "t", "stdio", "Transport type (stdio or http) (alias for --transport)")
+	flag.StringVar(
+		&transport,
+		"t",
+		"stdio",
+		"Transport type (stdio or http) (alias for --transport)",
+	)
 	flag.StringVar(&transport, "transport", "stdio", "Transport type (stdio or http)")
 	flag.Parse()
 

@@ -42,7 +42,10 @@ func NewMemoryStore() *MemoryStore {
 
 // SaveAuthorizationCode stores an authorization code in memory.
 // It returns an error if the code is nil or the code string is empty.
-func (m *MemoryStore) SaveAuthorizationCode(ctx context.Context, code *core.AuthorizationCode) error {
+func (m *MemoryStore) SaveAuthorizationCode(
+	ctx context.Context,
+	code *core.AuthorizationCode,
+) error {
 	if code == nil {
 		return ErrNilAuthorizationCode
 	}
@@ -60,7 +63,10 @@ func (m *MemoryStore) SaveAuthorizationCode(ctx context.Context, code *core.Auth
 // GetAuthorizationCode retrieves an authorization code from memory by its code string.
 // It returns ErrCodeNotFound if the code does not exist.
 // If the code has expired, it will be automatically deleted and ErrCodeNotFound is returned.
-func (m *MemoryStore) GetAuthorizationCode(ctx context.Context, clientID string) (*core.AuthorizationCode, error) {
+func (m *MemoryStore) GetAuthorizationCode(
+	ctx context.Context,
+	clientID string,
+) (*core.AuthorizationCode, error) {
 	if clientID == "" {
 		return nil, ErrEmptyClientID
 	}
