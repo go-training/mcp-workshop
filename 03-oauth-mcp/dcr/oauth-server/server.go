@@ -533,7 +533,7 @@ func main() {
 	defer cancel()
 	if err := srv.Shutdown(ctx); err != nil {
 		slog.Error("Server forced to shutdown", "err", err)
-		os.Exit(1)
+		return
 	}
 
 	slog.Info("Server shutdown gracefully")
@@ -541,13 +541,19 @@ func main() {
 
 func generateClientSecret() string {
 	b := make([]byte, 32)
-	rand.Read(b)
+	if _, err := rand.Read(b); err != nil {
+		slog.Error("failed to generate client secret", "err", err)
+		os.Exit(1)
+	}
 	return base64.RawURLEncoding.EncodeToString(b)
 }
 
 func generateAuthorizationCode() string {
 	b := make([]byte, 32)
-	rand.Read(b)
+	if _, err := rand.Read(b); err != nil {
+		slog.Error("failed to generate authorization code", "err", err)
+		os.Exit(1)
+	}
 	return base64.RawURLEncoding.EncodeToString(b)
 }
 

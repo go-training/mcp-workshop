@@ -207,7 +207,7 @@ func TestMemoryStore_ConcurrentAccess(t *testing.T) {
 	wg.Add(numGoroutines * 2)
 
 	// Concurrent writes
-	for i := 0; i < numGoroutines; i++ {
+	for i := range numGoroutines {
 		go func(index int) {
 			defer wg.Done()
 			code := &core.AuthorizationCode{
@@ -225,7 +225,7 @@ func TestMemoryStore_ConcurrentAccess(t *testing.T) {
 	}
 
 	// Concurrent reads
-	for i := 0; i < numGoroutines; i++ {
+	for i := range numGoroutines {
 		go func(index int) {
 			defer wg.Done()
 			searchClient := "client_" + string(rune('A'+index))
@@ -374,7 +374,7 @@ func TestMemoryStore_DeleteAuthorizationCode_Concurrent(t *testing.T) {
 	wg.Add(numGoroutines * 2)
 
 	// Concurrent writes
-	for i := 0; i < numGoroutines; i++ {
+	for i := range numGoroutines {
 		go func(index int) {
 			defer wg.Done()
 			code := &core.AuthorizationCode{
@@ -390,7 +390,7 @@ func TestMemoryStore_DeleteAuthorizationCode_Concurrent(t *testing.T) {
 	}
 
 	// Concurrent deletes
-	for i := 0; i < numGoroutines; i++ {
+	for i := range numGoroutines {
 		go func(index int) {
 			defer wg.Done()
 			clientID := "delete_client_" + string(rune('A'+index))
@@ -713,7 +713,7 @@ func TestMemoryStore_Client_Concurrent(t *testing.T) {
 	wg.Add(numGoroutines * 3)
 
 	// Concurrent creates
-	for i := 0; i < numGoroutines; i++ {
+	for i := range numGoroutines {
 		go func(index int) {
 			defer wg.Done()
 			client := &core.Client{
@@ -725,7 +725,7 @@ func TestMemoryStore_Client_Concurrent(t *testing.T) {
 	}
 
 	// Concurrent reads
-	for i := 0; i < numGoroutines; i++ {
+	for i := range numGoroutines {
 		go func(index int) {
 			defer wg.Done()
 			clientID := "concurrent_client_" + string(rune('A'+index))
@@ -734,7 +734,7 @@ func TestMemoryStore_Client_Concurrent(t *testing.T) {
 	}
 
 	// Concurrent updates
-	for i := 0; i < numGoroutines; i++ {
+	for i := range numGoroutines {
 		go func(index int) {
 			defer wg.Done()
 			client := &core.Client{
@@ -802,7 +802,7 @@ func TestMemoryStore_GetClients_LargeNumber(t *testing.T) {
 	numClients := 150
 
 	// Create a large number of clients
-	for i := 0; i < numClients; i++ {
+	for i := range numClients {
 		client := &core.Client{
 			ID:     fmt.Sprintf("client-large-%d", i),
 			Secret: "secret",
@@ -829,7 +829,7 @@ func TestMemoryStore_GetClients_LargeNumber(t *testing.T) {
 		clientMap[c.ID] = true
 	}
 
-	for i := 0; i < numClients; i++ {
+	for i := range numClients {
 		clientID := fmt.Sprintf("client-large-%d", i)
 		if !clientMap[clientID] {
 			t.Errorf("Client %s was not found in the retrieved list", clientID)

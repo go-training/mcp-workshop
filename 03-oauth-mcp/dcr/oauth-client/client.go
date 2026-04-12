@@ -154,7 +154,6 @@ func main() {
 			fatalError("Failed to ping server", err)
 		}
 		slog.Info("Server ping successful!")
-
 	} else if err != nil {
 		fatalError("Failed to initialize client", err)
 	}

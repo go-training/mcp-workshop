@@ -76,7 +76,12 @@ func (g *GitHubProvider) ExchangeToken(
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal request body: %w", err)
 	}
-	req, err := http.NewRequestWithContext(ctx, "POST", githubTokenURL, bytes.NewBuffer(jsonBody))
+	req, err := http.NewRequestWithContext(
+		ctx,
+		http.MethodPost,
+		githubTokenURL,
+		bytes.NewBuffer(jsonBody),
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -117,7 +122,7 @@ func (g *GitHubProvider) FetchUserInfo(accessToken string) (*UserInfo, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
 	defer cancel()
 
-	req, err := http.NewRequestWithContext(ctx, "GET", githubUserAPIURL, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, githubUserAPIURL, nil)
 	if err != nil {
 		return nil, err
 	}

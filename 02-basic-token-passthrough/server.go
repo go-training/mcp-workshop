@@ -1,5 +1,4 @@
 //go:build !windows
-// +build !windows
 
 // Package main demonstrates an MCP server that passes authentication tokens
 // through context, supporting both HTTP and stdio transports.
@@ -134,11 +133,12 @@ func main() {
 		slog.Info("Shutdown signal received, shutting down server...")
 
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
 		if err := srv.Shutdown(ctx); err != nil {
+			cancel()
 			slog.Error("Server forced to shutdown", "err", err)
 			os.Exit(1)
 		}
+		cancel()
 
 		slog.Info("Server shutdown gracefully")
 	default:

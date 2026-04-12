@@ -4,6 +4,7 @@ package token
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -22,7 +23,7 @@ type response struct {
 // the provided auth token in the Authorization header and the message as a query parameter.
 // Returns the parsed response or an error.
 func makeRequest(ctx context.Context, message, token string) (*response, error) {
-	req, err := http.NewRequestWithContext(ctx, "GET", "https://httpbin.org/anything", nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://httpbin.org/anything", nil)
 	if err != nil {
 		return nil, err
 	}
@@ -75,7 +76,7 @@ func HandleMakeAuthenticatedRequestTool(
 	message, ok := request.GetArguments()["message"].(string)
 	if !ok {
 		logger.Error("Missing message argument")
-		return nil, fmt.Errorf("missing message")
+		return nil, errors.New("missing message")
 	}
 	token, err := core.TokenFromContext(ctx)
 	if err != nil || token == "" {

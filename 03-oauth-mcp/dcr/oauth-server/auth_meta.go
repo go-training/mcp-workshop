@@ -84,11 +84,11 @@ type ClientRegistrationResponse struct {
 	ClientSecret string `json:"client_secret,omitempty"`
 
 	// ClientIDIssuedAt is an OPTIONAL Unix timestamp when the ClientID was issued.
-	ClientIDIssuedAt time.Time `json:"client_id_issued_at,omitempty"`
+	ClientIDIssuedAt time.Time `json:"client_id_issued_at,omitzero"`
 
 	// ClientSecretExpiresAt is the REQUIRED (if client_secret is issued) Unix
 	// timestamp when the secret expires, or 0 if it never expires.
-	ClientSecretExpiresAt time.Time `json:"client_secret_expires_at,omitempty"`
+	ClientSecretExpiresAt time.Time `json:"client_secret_expires_at,omitzero"`
 
 	// RedirectURIs is a REQUIRED JSON array of redirection URI strings for use in
 	// redirect-based flows (such as the authorization code grant).

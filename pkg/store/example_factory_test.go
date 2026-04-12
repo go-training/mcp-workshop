@@ -206,11 +206,13 @@ func Example_switchingStores() {
 		Addr: "localhost:6379",
 	}))
 	if err == nil {
-		defer redisStore.(*store.RedisStore).Close()
-		if err := useStore(redisStore); err != nil {
-			log.Fatal(err)
-		}
-		fmt.Println("Redis store: OK")
+		func() {
+			defer redisStore.(*store.RedisStore).Close()
+			if err := useStore(redisStore); err != nil {
+				log.Fatal(err)
+			}
+			fmt.Println("Redis store: OK")
+		}()
 	}
 
 	// Output: Memory store: OK

@@ -891,7 +891,7 @@ func TestRedisStore_GetClient_ClientSideCache(t *testing.T) {
 	}
 
 	// Test that multiple consecutive calls use cache
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		retrieved, err := store.GetClient(ctx, client.ID)
 		if err != nil {
 			t.Fatalf("GetClient() call %d failed: %v", i+1, err)
@@ -1031,7 +1031,7 @@ func TestRedisStore_GetClients_Pagination(t *testing.T) {
 	numClients := 150 // More than the SCAN COUNT of 100
 
 	// Create a large number of clients
-	for i := 0; i < numClients; i++ {
+	for i := range numClients {
 		client := &core.Client{
 			ID:     fmt.Sprintf("client-pagination-%d", i),
 			Secret: "secret",
@@ -1058,7 +1058,7 @@ func TestRedisStore_GetClients_Pagination(t *testing.T) {
 		clientMap[c.ID] = true
 	}
 
-	for i := 0; i < numClients; i++ {
+	for i := range numClients {
 		clientID := fmt.Sprintf("client-pagination-%d", i)
 		if !clientMap[clientID] {
 			t.Errorf("Client %s was not found in the retrieved list", clientID)

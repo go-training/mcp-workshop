@@ -28,7 +28,7 @@ func trimPathDepth(path string, depth int) string {
 func (h *callerHandler) Handle(ctx context.Context, r slog.Record) error {
 	// Skip 3 stack frames to get the actual caller of the log function
 	_, file, line, ok := runtime.Caller(3)
-	caller := ""
+	var caller string
 	if ok {
 		// Always show only the last 3 segments of the file path for readability
 		relPath := trimPathDepth(file, 2)

@@ -98,7 +98,12 @@ func (g *GitLabProvider) ExchangeToken(
 	}
 
 	tokenURL := g.host + gitlabTokenPath
-	req, err := http.NewRequestWithContext(ctx, "POST", tokenURL, bytes.NewBuffer(jsonBody))
+	req, err := http.NewRequestWithContext(
+		ctx,
+		http.MethodPost,
+		tokenURL,
+		bytes.NewBuffer(jsonBody),
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -146,7 +151,7 @@ func (g *GitLabProvider) FetchUserInfo(accessToken string) (*UserInfo, error) {
 	defer cancel()
 
 	userAPIURL := g.host + gitlabUserAPIPath
-	req, err := http.NewRequestWithContext(ctx, "GET", userAPIURL, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, userAPIURL, nil)
 	if err != nil {
 		return nil, err
 	}

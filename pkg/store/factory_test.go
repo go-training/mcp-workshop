@@ -240,7 +240,7 @@ func TestNewStore(t *testing.T) {
 		name     string
 		config   Config
 		wantErr  bool
-		wantType interface{}
+		wantType any
 	}{
 		{
 			name: "create memory store",

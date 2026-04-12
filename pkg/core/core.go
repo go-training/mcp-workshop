@@ -2,7 +2,7 @@ package core
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"log/slog"
 	"net/http"
 	"os"
@@ -47,7 +47,7 @@ func AuthFromEnv(ctx context.Context) context.Context {
 func TokenFromContext(ctx context.Context) (string, error) {
 	auth, ok := ctx.Value(AuthKey{}).(string)
 	if !ok {
-		return "", fmt.Errorf("missing auth")
+		return "", errors.New("missing auth")
 	}
 	return auth, nil
 }
@@ -73,7 +73,7 @@ func WithStore(ctx context.Context, store Store) context.Context {
 func StoreFromContext(ctx context.Context) (Store, error) {
 	store, ok := ctx.Value(StoreKey{}).(Store)
 	if !ok {
-		return nil, fmt.Errorf("missing store")
+		return nil, errors.New("missing store")
 	}
 	return store, nil
 }

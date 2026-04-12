@@ -24,10 +24,7 @@ func corsMiddleware(allowedHeaders ...string) gin.HandlerFunc {
 			}
 		}
 		// Output headers preserving canonical casing and custom order
-		headers := []string{}
-		for _, h := range defaultHeaders {
-			headers = append(headers, h)
-		}
+		headers := append([]string{}, defaultHeaders...)
 		for _, h := range allowedHeaders {
 			hNorm := strings.TrimSpace(h)
 			if hNorm != "" && hNorm != "*" && !containsCI(defaultHeaders, hNorm) {
@@ -39,7 +36,7 @@ func corsMiddleware(allowedHeaders ...string) gin.HandlerFunc {
 		headersList = defaultHeaders
 	}
 
-	allowedMethods := []string{"GET", "POST", "OPTIONS"}
+	allowedMethods := []string{http.MethodGet, http.MethodPost, http.MethodOptions}
 	return func(c *gin.Context) {
 		// For production, set allowlist for origins here; demo fallback is *
 		c.Header("Access-Control-Allow-Origin", "*")
@@ -47,8 +44,8 @@ func corsMiddleware(allowedHeaders ...string) gin.HandlerFunc {
 		c.Header("Access-Control-Allow-Methods", strings.Join(allowedMethods, ", "))
 		c.Header("Access-Control-Allow-Headers", strings.Join(headersList, ", "))
 		c.Header("Access-Control-Max-Age", "86400")
-		if c.Request.Method == "OPTIONS" {
-			c.AbortWithStatus(204)
+		if c.Request.Method == http.MethodOptions {
+			c.AbortWithStatus(http.StatusNoContent)
 			return
 		}
 		c.Next()
@@ -66,9 +63,8 @@ func authMiddleware(c *gin.Context) {
 
 // containsCI checks if slice contains item (case-insensitive).
 func containsCI(slice []string, item string) bool {
-	item = strings.ToLower(item)
 	for _, s := range slice {
-		if strings.ToLower(s) == item {
+		if strings.EqualFold(s, item) {
 			return true
 		}
 	}

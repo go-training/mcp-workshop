@@ -9,7 +9,7 @@ type Token struct {
 	TokenType    string    `json:"token_type"`              // e.g., "Bearer"
 	ExpiresIn    int64     `json:"expires_in,omitempty"`    // Duration in seconds
 	Scope        string    `json:"scope,omitempty"`
-	ExpiresAt    time.Time `json:"expires_at,omitempty"`
+	ExpiresAt    time.Time `json:"expires_at,omitzero"`
 }
 
 // UserInfo represents the user information returned from OAuth providers.

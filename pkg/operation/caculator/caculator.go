@@ -2,6 +2,7 @@ package caculator
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/mark3labs/mcp-go/mcp"
@@ -27,7 +28,7 @@ func HandleAddNumbersTool(
 	num1Val, ok1 := req.GetArguments()["num1"].(float64)
 	num2Val, ok2 := req.GetArguments()["num2"].(float64)
 	if !ok1 || !ok2 {
-		return nil, fmt.Errorf("invalid num1 or num2 argument")
+		return nil, errors.New("invalid num1 or num2 argument")
 	}
 	sum := num1Val + num2Val
 	return mcp.NewToolResultText(fmt.Sprintf("Sum: %.0f", sum)), nil

@@ -8,6 +8,8 @@ import (
 )
 
 // StoreType represents the type of store backend.
+//
+//nolint:revive // StoreType name is intentional for workshop clarity; renaming would stutter as store.Type
 type StoreType string
 
 const (

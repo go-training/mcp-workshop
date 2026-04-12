@@ -2,7 +2,7 @@ package echo
 
 import (
 	"context"
-	"fmt"
+	"errors"
 
 	"github.com/mark3labs/mcp-go/mcp"
 )
@@ -33,8 +33,8 @@ func HandleEchoMessageTool(
 	// Retrieve the "message" argument from arguments and check its type
 	message, ok := req.GetArguments()["message"].(string)
 	if !ok {
-		return nil, fmt.Errorf("invalid message argument") // Argument type error
+		return nil, errors.New("invalid message argument") // Argument type error
 	}
 	// Return the formatted message
-	return mcp.NewToolResultText(fmt.Sprintf("Echo: %s", message)), nil
+	return mcp.NewToolResultText("Echo: " + message), nil
 }

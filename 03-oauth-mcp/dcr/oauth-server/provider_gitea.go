@@ -84,7 +84,7 @@ func (g *GiteaProvider) ExchangeToken(
 
 	req, err := http.NewRequestWithContext(
 		ctx,
-		"POST",
+		http.MethodPost,
 		tokenURL,
 		bytes.NewBufferString(reqBody.Encode()),
 	)
@@ -134,7 +134,7 @@ func (g *GiteaProvider) FetchUserInfo(accessToken string) (*UserInfo, error) {
 	defer cancel()
 
 	userAPIURL := g.host + giteaUserAPIPath
-	req, err := http.NewRequestWithContext(ctx, "GET", userAPIURL, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, userAPIURL, nil)
 	if err != nil {
 		return nil, err
 	}
