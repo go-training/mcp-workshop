@@ -20,6 +20,13 @@ import (
 )
 
 func main() {
+	if err := run(); err != nil {
+		slog.Error("verification failed", "err", err)
+		os.Exit(1)
+	}
+}
+
+func run() error {
 	var (
 		mcpURL       string
 		authServer   string
@@ -81,8 +88,7 @@ func main() {
 	slog.Info("connecting", "mcp_url", mcpURL, "token_url", tokenURL, "scopes", cfg.Scopes)
 	session, err := client.Connect(ctx, transport, nil)
 	if err != nil {
-		slog.Error("connect failed", "err", err)
-		os.Exit(1)
+		return fmt.Errorf("connect: %w", err)
 	}
 	defer session.Close()
 
@@ -93,8 +99,7 @@ func main() {
 
 	tools, err := session.ListTools(ctx, &mcp.ListToolsParams{})
 	if err != nil {
-		slog.Error("list tools failed", "err", err)
-		os.Exit(1)
+		return fmt.Errorf("list tools: %w", err)
 	}
 	names := make([]string, 0, len(tools.Tools))
 	for _, t := range tools.Tools {
@@ -107,8 +112,7 @@ func main() {
 		Arguments: map[string]any{"message": "hello from go-sdk"},
 	})
 	if err != nil {
-		slog.Error("call echo_message failed", "err", err)
-		os.Exit(1)
+		return fmt.Errorf("call echo_message: %w", err)
 	}
 	printToolResult("echo_message", echoResult)
 
@@ -117,12 +121,12 @@ func main() {
 		Arguments: map[string]any{"a": 21, "b": 21},
 	})
 	if err != nil {
-		slog.Error("call add_numbers failed", "err", err)
-		os.Exit(1)
+		return fmt.Errorf("call add_numbers: %w", err)
 	}
 	printToolResult("add_numbers", addResult)
 
 	slog.Info("verification complete")
+	return nil
 }
 
 func probeUnauthenticated(ctx context.Context, mcpURL string) error {

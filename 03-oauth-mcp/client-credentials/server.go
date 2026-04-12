@@ -43,7 +43,11 @@ type introspectionResponse struct {
 	Exp      int64  `json:"exp,omitempty"`
 }
 
-func (i *introspector) Verify(ctx context.Context, token string, _ *http.Request) (*auth.TokenInfo, error) {
+func (i *introspector) Verify(
+	ctx context.Context,
+	token string,
+	_ *http.Request,
+) (*auth.TokenInfo, error) {
 	form := url.Values{}
 	form.Set("token", token)
 	form.Set("token_type_hint", "access_token")
@@ -64,7 +68,11 @@ func (i *introspector) Verify(ctx context.Context, token string, _ *http.Request
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("%w: introspection returned HTTP %d", auth.ErrInvalidToken, resp.StatusCode)
+		return nil, fmt.Errorf(
+			"%w: introspection returned HTTP %d",
+			auth.ErrInvalidToken,
+			resp.StatusCode,
+		)
 	}
 
 	var body introspectionResponse
@@ -105,7 +113,11 @@ type EchoOutput struct {
 	Scopes   []string `json:"scopes"    jsonschema:"scopes granted to the access token"`
 }
 
-func echoHandler(_ context.Context, req *mcp.CallToolRequest, input EchoInput) (*mcp.CallToolResult, EchoOutput, error) {
+func echoHandler(
+	_ context.Context,
+	req *mcp.CallToolRequest,
+	input EchoInput,
+) (*mcp.CallToolResult, EchoOutput, error) {
 	info := req.Extra.TokenInfo
 	clientID, _ := info.Extra["client_id"].(string)
 	return nil, EchoOutput{
@@ -124,7 +136,11 @@ type AddOutput struct {
 	Sum float64 `json:"sum" jsonschema:"the sum of a and b"`
 }
 
-func addHandler(_ context.Context, _ *mcp.CallToolRequest, input AddInput) (*mcp.CallToolResult, AddOutput, error) {
+func addHandler(
+	_ context.Context,
+	_ *mcp.CallToolRequest,
+	input AddInput,
+) (*mcp.CallToolResult, AddOutput, error) {
 	return nil, AddOutput{Sum: input.A + input.B}, nil
 }
 
@@ -211,12 +227,15 @@ func main() {
 
 	mux := http.NewServeMux()
 	mux.Handle("/mcp", authMiddleware(mcpHandler))
-	mux.Handle(resourceMetadataPath, auth.ProtectedResourceMetadataHandler(&oauthex.ProtectedResourceMetadata{
-		Resource:               resourceURL,
-		AuthorizationServers:   []string{authServerURL},
-		BearerMethodsSupported: []string{"header"},
-		ScopesSupported:        scopes,
-	}))
+	mux.Handle(
+		resourceMetadataPath,
+		auth.ProtectedResourceMetadataHandler(&oauthex.ProtectedResourceMetadata{
+			Resource:               resourceURL,
+			AuthorizationServers:   []string{authServerURL},
+			BearerMethodsSupported: []string{"header"},
+			ScopesSupported:        scopes,
+		}),
+	)
 
 	srv := &http.Server{
 		Addr:         addr,
