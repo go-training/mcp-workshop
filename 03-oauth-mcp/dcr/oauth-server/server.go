@@ -425,7 +425,10 @@ func main() {
 			)
 
 			// Delete authorization code
-			if err := oauthStore.DeleteAuthorizationCode(c.Request.Context(), clientID); err != nil {
+			if err := oauthStore.DeleteAuthorizationCode(
+				c.Request.Context(),
+				clientID,
+			); err != nil {
 				c.JSON(
 					http.StatusInternalServerError,
 					gin.H{"error": "failed to delete authorization code", "details": err.Error()},
@@ -570,7 +573,7 @@ func isValidRedirectURI(redirectURI string, allowedURIs []string) bool {
 	return false
 }
 
-func computeCodeChallenge(codeVerifier string, method string) (string, error) {
+func computeCodeChallenge(codeVerifier, method string) (string, error) {
 	switch method {
 	case "plain":
 		return codeVerifier, nil
