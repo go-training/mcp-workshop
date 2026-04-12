@@ -26,3 +26,9 @@ go.work.sum
 mcp-server
 .vscode/mcp.json
 bin/
+
+# Python (uv)
+.venv/
+__pycache__/
+*.pyc
+.python-version

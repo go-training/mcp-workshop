@@ -1,0 +1,9 @@
+[project]
+name = "client-credentials-mcp-client"
+version = "0.1.0"
+description = "Python MCP client that verifies the client-credentials MCP server via the OAuth 2.0 Client Credentials extension."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "mcp>=1.27.0",
+]
