@@ -2,7 +2,7 @@ module github.com/go-training/mcp-workshop
 
 go 1.25.0
 
-toolchain go1.25.9
+toolchain go1.25.10
 
 require (
 	github.com/appleboy/graceful v1.3.0
