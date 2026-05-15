@@ -6,4 +6,5 @@ readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
     "mcp>=1.27.0",
+    "python-multipart>=0.0.27",
 ]
