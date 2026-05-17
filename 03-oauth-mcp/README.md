@@ -4,18 +4,37 @@ This module demonstrates OAuth 2.0 integration with MCP (Model Context Protocol)
 
 ## Implementations
 
-### Dynamic Client Registration (DCR)
+### Authorization Code + PKCE (interactive user flow)
 
-The `dcr/` directory contains a complete OAuth 2.0 implementation with Dynamic Client Registration support.
+The `dcr/` directory contains an MCP **resource server** for the
+[OAuth 2.1 Authorization Code + PKCE](https://datatracker.ietf.org/doc/html/draft-ietf-oauth-v2-1)
+flow, built with the official
+[Model Context Protocol Go SDK](https://github.com/modelcontextprotocol/go-sdk).
 
-- **[Dynamic Client Registration Implementation](dcr/README.md)**: Full documentation for the DCR-based OAuth flow
+The server issues no tokens — it delegates all OAuth work to an external
+authorization server (e.g. [AuthGate](https://github.com/go-authgate/authgate))
+and validates each incoming Bearer. Federated identity providers
+(GitHub, Gitea, Microsoft Entra ID, …) are configured on AuthGate, not here.
+Dynamic Client Registration is also AuthGate's `/oauth/register`; the
+`dcr/` MCP server does not host its own DCR endpoint.
+
+- **[dcr Implementation](dcr/README.md)**: full documentation for the
+  Authorization Code + PKCE split
 - **Key Features**:
-  - Multi-provider OAuth (GitHub, GitLab, Gitea)
-  - Dynamic client registration endpoint
-  - PKCE (Proof Key for Code Exchange) support
-  - Flexible storage backends (memory, Redis)
+  - Two verifier variants: local JWKS ([`dcr/oauth-server/`](dcr/oauth-server/))
+    and RFC 7662 introspection ([`dcr/oauth-server-introspect/`](dcr/oauth-server-introspect/))
+  - Bearer-token protected MCP endpoint via `auth.RequireBearerToken`
+  - RFC 9728 protected-resource metadata for client auto-discovery
+  - **RFC 8707 resource indicator** binds the issued JWT to this MCP
+    resource via the `aud` claim, preventing cross-RS token replay
+  - Example client in [Go](dcr/oauth-client/) that performs auth-code+PKCE
+    end-to-end with persistent token storage
+  - Provider choice (GitHub / Gitea / Microsoft) is configured server-side
+    on AuthGate; the MCP server is provider-agnostic
 
-See [dcr/README.md](dcr/README.md) for complete documentation and usage instructions.
+See [dcr/README.md](dcr/README.md) for complete documentation, including
+Gap A (upstream provider tokens are not passed through to MCP tools) and
+Gap B (GitLab is not currently a federated provider on AuthGate).
 
 ### Client Credentials (machine-to-machine)
 
@@ -42,12 +61,24 @@ See [client-credentials/README.md](client-credentials/README.md) for complete do
 ## Quick Start
 
 ```bash
-# DCR (interactive, authorization-code + PKCE)
-cd dcr/oauth-server
-go run . -client_id=<your-id> -client_secret=<your-secret>
+# Authorization Code + PKCE (interactive, dcr/) — validates tokens issued by an external AS (e.g. AuthGate)
+# JWKS variant (listens on :8095, local signature verification)
+go run ./dcr/oauth-server \
+  -auth-server http://localhost:8080 \
+  -resource    http://localhost:8095/mcp
 
-cd dcr/oauth-client
-go run .
+# Introspection variant (listens on :8095, RFC 7662 calls to AS on every request)
+go run ./dcr/oauth-server-introspect \
+  -auth-server http://localhost:8080 \
+  -resource    http://localhost:8095/mcp \
+  -introspect-client-id mcp-resource \
+  -introspect-client-secret rs-secret
+
+# Example client (runs auth-code+PKCE flow, persists token, calls who_am_i)
+go run ./dcr/oauth-client \
+  -auth-server http://localhost:8080 \
+  -mcp-url     http://localhost:8095/mcp \
+  -client_id   <your-registered-client-id>
 
 # Client Credentials (machine-to-machine) — validates tokens issued by an external AS (e.g. AuthGate)
 # Introspection variant (listens on :8096)
