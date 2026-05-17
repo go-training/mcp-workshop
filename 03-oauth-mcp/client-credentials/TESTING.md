@@ -425,8 +425,8 @@ level=WARN msg="non-access token rejected" got_type=refresh subject=...
 
 **Pass criteria:**
 
-- [ ] HTTP status `401`.
-- [ ] Server log shows `non-access token rejected got_type=refresh`.
+- [ ] HTTP status `401` on the refresh-as-Bearer request.
+- [ ] **Path A only:** server log shows `non-access token rejected got_type=refresh`. Path B users cannot exercise this — the `type=="access"` defence is dormant against opaque-refresh issuers, so the JWKS signature step rejects first.
 
 **Cleanup:** `Ctrl+C` in Terminal A.
 
