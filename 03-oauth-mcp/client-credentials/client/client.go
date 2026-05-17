@@ -9,12 +9,14 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 	"time"
 
 	"github.com/go-training/mcp-workshop/pkg/logger"
 
+	"github.com/modelcontextprotocol/go-sdk/auth"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"golang.org/x/oauth2/clientcredentials"
 )
@@ -31,6 +33,7 @@ func run() error {
 		mcpURL       string
 		authServer   string
 		tokenURL     string
+		resource     string
 		clientID     string
 		clientSecret string
 		scopes       string
@@ -42,7 +45,11 @@ func run() error {
 	flag.StringVar(&authServer, "auth-server", "http://localhost:8080",
 		"OAuth 2.0 authorization server issuer URL (e.g. AuthGate)")
 	flag.StringVar(&tokenURL, "token-url", "",
-		"OAuth 2.0 token endpoint (defaults to <auth-server>/oauth/token)")
+		"OAuth 2.0 token endpoint (default: RFC 8414 discovery from -auth-server; "+
+			"falls back to <auth-server>/oauth/token with a WARN)")
+	flag.StringVar(&resource, "resource", "",
+		"RFC 8707 resource indicator sent on the token request "+
+			"(default: -mcp-url; binds the issued JWT's aud claim)")
 	flag.StringVar(&clientID, "client_id", "my-service", "OAuth client_id")
 	flag.StringVar(&clientSecret, "client_secret", "s3cr3t", "OAuth client_secret")
 	flag.StringVar(&scopes, "scopes", "mcp:read mcp:write",
@@ -54,12 +61,25 @@ func run() error {
 
 	logger.NewWithLevel(logLevel)
 
-	if tokenURL == "" {
-		tokenURL = strings.TrimRight(authServer, "/") + "/oauth/token"
+	if resource == "" {
+		resource = mcpURL
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
+
+	if tokenURL == "" {
+		meta, err := auth.GetAuthServerMetadata(ctx, authServer, http.DefaultClient)
+		if err == nil && meta.TokenEndpoint != "" {
+			tokenURL = meta.TokenEndpoint
+			slog.Info("discovered token endpoint via RFC 8414",
+				"auth_server", authServer, "token_endpoint", tokenURL)
+		} else {
+			tokenURL = strings.TrimRight(authServer, "/") + "/oauth/token"
+			slog.Warn("RFC 8414 discovery failed, using fallback",
+				"auth_server", authServer, "fallback", tokenURL, "err", err)
+		}
+	}
 
 	// Probe exists only to prove the server's auth middleware is wired up;
 	// it is not part of the normal client-credentials flow.
@@ -70,10 +90,11 @@ func run() error {
 	}
 
 	cfg := &clientcredentials.Config{
-		ClientID:     clientID,
-		ClientSecret: clientSecret,
-		TokenURL:     tokenURL,
-		Scopes:       strings.Fields(scopes),
+		ClientID:       clientID,
+		ClientSecret:   clientSecret,
+		TokenURL:       tokenURL,
+		Scopes:         strings.Fields(scopes),
+		EndpointParams: url.Values{"resource": []string{resource}},
 	}
 
 	transport := &mcp.StreamableClientTransport{
@@ -85,7 +106,12 @@ func run() error {
 		Version: "1.0.0",
 	}, nil)
 
-	slog.Info("connecting", "mcp_url", mcpURL, "token_url", tokenURL, "scopes", cfg.Scopes)
+	slog.Info("connecting",
+		"mcp_url", mcpURL,
+		"token_url", tokenURL,
+		"resource", resource,
+		"scopes", cfg.Scopes,
+	)
 	session, err := client.Connect(ctx, transport, nil)
 	if err != nil {
 		return fmt.Errorf("connect: %w", err)
