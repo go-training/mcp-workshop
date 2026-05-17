@@ -135,9 +135,9 @@ request — the SDK makes several during init + tool calls).
 
 **Pass criteria:**
 
-- [ ] Client prints `discovered token endpoint via RFC 8414` (proves RFC 8414).
-- [ ] Client prints `verification complete` with no errors.
-- [ ] Server logs `audience verified` with `got_aud=[https://mcp.example/mcp]`.
+- [X] Client prints `discovered token endpoint via RFC 8414` (proves RFC 8414).
+- [X] Client prints `verification complete` with no errors.
+- [X] Server logs `audience verified` with `got_aud=[https://mcp.example/mcp]`.
 
 **Cleanup:** `Ctrl+C` in Terminal A.
 
@@ -190,9 +190,9 @@ level=WARN msg="audience mismatch" expected_aud=https://mcp.example/mcp got_aud=
 
 **Pass criteria:**
 
-- [ ] HTTP status is `401`.
-- [ ] `WWW-Authenticate` header contains `error="invalid_token"`.
-- [ ] Server log shows `audience mismatch` with both `expected_aud` and `got_aud`.
+- [X] HTTP status is `401`.
+- [X] `WWW-Authenticate` header contains `error="invalid_token"`.
+- [X] Server log shows `audience mismatch` with both `expected_aud` and `got_aud`.
 
 **Cleanup:** none yet — keep the server running for Scenario 3.
 
@@ -247,8 +247,8 @@ curl -i -X POST http://localhost:8096/mcp \
 
 **Pass criteria:**
 
-- [ ] HTTP status `401`.
-- [ ] One of the two log lines above appears.
+- [X] HTTP status `401`.
+- [X] One of the two log lines above appears.
 
 **Cleanup:** `Ctrl+C` in Terminal A.
 
@@ -341,10 +341,10 @@ sudo tcpdump -i any -nn 'port 8080' &
 
 **Pass criteria:**
 
-- [ ] Client prints `verification complete`.
-- [ ] Server log shows `jwt verified` at DEBUG level.
-- [ ] Server log shows `audience verified`.
-- [ ] No per-request traffic from `server-jwks` to AuthGate (optional check).
+- [X] Client prints `verification complete`.
+- [X] Server log shows `jwt verified` at DEBUG level.
+- [X] Server log shows `audience verified`.
+- [X] No per-request traffic from `server-jwks` to AuthGate (optional check).
 
 **Cleanup:** leave the server running for Scenario 5.
 
