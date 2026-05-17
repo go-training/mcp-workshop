@@ -15,6 +15,7 @@ import (
 	"net/url"
 	"os"
 	"os/signal"
+	"slices"
 	"strings"
 	"syscall"
 	"time"
@@ -27,20 +28,41 @@ import (
 )
 
 type introspector struct {
-	endpoint     string
-	clientID     string
-	clientSecret string
-	httpClient   *http.Client
+	endpoint               string
+	clientID               string
+	clientSecret           string
+	expectedAudience       string
+	requireResourceBinding bool
+	httpClient             *http.Client
+}
+
+// audClaim accepts the RFC 7662 §2.2 `aud` shape — either a single string or
+// an array of strings — and normalises it to a slice for comparison.
+type audClaim []string
+
+func (a *audClaim) UnmarshalJSON(data []byte) error {
+	var s string
+	if err := json.Unmarshal(data, &s); err == nil {
+		*a = audClaim{s}
+		return nil
+	}
+	var arr []string
+	if err := json.Unmarshal(data, &arr); err != nil {
+		return fmt.Errorf("aud claim must be string or []string: %w", err)
+	}
+	*a = arr
+	return nil
 }
 
 type introspectionResponse struct {
-	Active   bool   `json:"active"`
-	Scope    string `json:"scope,omitempty"`
-	ClientID string `json:"client_id,omitempty"`
-	Username string `json:"username,omitempty"`
-	Sub      string `json:"sub,omitempty"`
-	TokenTyp string `json:"token_type,omitempty"`
-	Exp      int64  `json:"exp,omitempty"`
+	Active   bool     `json:"active"`
+	Scope    string   `json:"scope,omitempty"`
+	ClientID string   `json:"client_id,omitempty"`
+	Username string   `json:"username,omitempty"`
+	Sub      string   `json:"sub,omitempty"`
+	TokenTyp string   `json:"token_type,omitempty"`
+	Exp      int64    `json:"exp,omitempty"`
+	Aud      audClaim `json:"aud,omitempty"`
 }
 
 func (i *introspector) Verify(
@@ -79,8 +101,19 @@ func (i *introspector) Verify(
 	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
 		return nil, fmt.Errorf("decode introspection response: %w", err)
 	}
+	slog.DebugContext(ctx, "introspection response",
+		"active", body.Active,
+		"client_id", body.ClientID,
+		"scope", body.Scope,
+		"aud", body.Aud,
+		"exp", body.Exp,
+	)
 	if !body.Active {
 		return nil, fmt.Errorf("%w: token is not active", auth.ErrInvalidToken)
+	}
+
+	if err := i.checkAudience(ctx, body.Aud); err != nil {
+		return nil, err
 	}
 
 	info := &auth.TokenInfo{
@@ -93,6 +126,9 @@ func (i *introspector) Verify(
 	if body.ClientID != "" {
 		info.Extra["client_id"] = body.ClientID
 	}
+	if len(body.Aud) > 0 {
+		info.Extra["aud"] = body.Aud
+	}
 	if body.Username != "" {
 		info.UserID = body.Username
 		info.Extra["username"] = body.Username
@@ -101,6 +137,41 @@ func (i *introspector) Verify(
 		info.Extra["sub"] = body.Sub
 	}
 	return info, nil
+}
+
+// checkAudience enforces the RFC 8707 resource binding contract. The
+// `client_credentials` grant has no per-client resource allowlist on AuthGate,
+// so without this check any access token issued by the same authorization
+// server would be accepted by any MCP resource server sharing that issuer.
+func (i *introspector) checkAudience(ctx context.Context, aud audClaim) error {
+	if i.expectedAudience == "" {
+		return nil
+	}
+	if len(aud) == 0 {
+		if i.requireResourceBinding {
+			slog.WarnContext(ctx, "audience missing or unbound",
+				"expected_aud", i.expectedAudience)
+			return fmt.Errorf(
+				"%w: token has no aud claim but resource binding is required",
+				auth.ErrInvalidToken,
+			)
+		}
+		slog.WarnContext(ctx, "token accepted without aud claim",
+			"expected_aud", i.expectedAudience,
+			"hint", "set -require-resource-binding=true to reject")
+		return nil
+	}
+	if slices.Contains(aud, i.expectedAudience) {
+		slog.InfoContext(ctx, "audience verified",
+			"expected_aud", i.expectedAudience,
+			"got_aud", aud)
+		return nil
+	}
+	slog.WarnContext(ctx, "audience mismatch",
+		"expected_aud", i.expectedAudience,
+		"got_aud", aud)
+	return fmt.Errorf("%w: aud claim %v does not match %q",
+		auth.ErrInvalidToken, aud, i.expectedAudience)
 }
 
 type EchoInput struct {
@@ -172,6 +243,7 @@ func main() {
 		introspectClientID     string
 		introspectClientSecret string
 		requiredScopes         string
+		requireResourceBinding bool
 		logLevel               string
 	)
 	flag.StringVar(&addr, "addr", ":8096", "address to listen on")
@@ -187,6 +259,9 @@ func main() {
 		"client_secret this resource server uses to call the introspection endpoint (required)")
 	flag.StringVar(&requiredScopes, "required-scopes", "mcp:read",
 		"space-separated scopes an access token must contain to reach /mcp")
+	flag.BoolVar(&requireResourceBinding, "require-resource-binding", false,
+		"reject tokens whose introspection response has no aud claim "+
+			"(otherwise such tokens are accepted with a WARN log)")
 	flag.StringVar(&logLevel, "log-level", "INFO", "log level: DEBUG, INFO, WARN, ERROR")
 	flag.Parse()
 
@@ -206,10 +281,12 @@ func main() {
 	scopes := strings.Fields(requiredScopes)
 
 	ins := &introspector{
-		endpoint:     introspectionURL,
-		clientID:     introspectClientID,
-		clientSecret: introspectClientSecret,
-		httpClient:   &http.Client{Timeout: 5 * time.Second},
+		endpoint:               introspectionURL,
+		clientID:               introspectClientID,
+		clientSecret:           introspectClientSecret,
+		expectedAudience:       resourceURL,
+		requireResourceBinding: requireResourceBinding,
+		httpClient:             &http.Client{Timeout: 5 * time.Second},
 	}
 
 	resourceMetadataPath := "/.well-known/oauth-protected-resource"
@@ -251,6 +328,7 @@ func main() {
 		"auth_server", authServerURL,
 		"introspection_url", introspectionURL,
 		"required_scopes", scopes,
+		"require_resource_binding", requireResourceBinding,
 	)
 
 	go func() {
