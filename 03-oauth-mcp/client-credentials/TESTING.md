@@ -15,10 +15,9 @@ self-cleaning.
   - [Negative control — `require-resource-binding=false` accepts the same token](#negative-control--require-resource-bindingfalse-accepts-the-same-token)
 - [Scenario 4 — JWKS variant, happy path](#scenario-4--jwks-variant-happy-path)
 - [Scenario 5 — JWKS variant rejects a refresh token used as Bearer](#scenario-5--jwks-variant-rejects-a-refresh-token-used-as-bearer)
-  - [Option A — Password grant (if enabled on AuthGate)](#option-a--password-grant-if-enabled-on-authgate)
-  - [Option B — Authorization code flow](#option-b--authorization-code-flow)
-  - [If neither option is available](#if-neither-option-is-available)
-  - [Verifying the rejection (Option A or B)](#verifying-the-rejection-option-a-or-b)
+  - [Path A — Authorization code flow yields a refresh JWT](#path-a--authorization-code-flow-yields-a-refresh-jwt)
+  - [Path B — AuthGate issues opaque refresh tokens (degenerate case)](#path-b--authgate-issues-opaque-refresh-tokens-degenerate-case)
+  - [Verifying the rejection (Path A)](#verifying-the-rejection-path-a)
 - [Scenario 6 — Python client auto-derives `resource`](#scenario-6--python-client-auto-derives-resource)
 - [Scenario 7 — Manual `curl` walkthrough (no Go or Python client)](#scenario-7--manual-curl-walkthrough-no-go-or-python-client)
   - [7.1 RFC 8414 discovery](#71-rfc-8414-discovery)
@@ -354,37 +353,41 @@ sudo tcpdump -i any -nn 'port 8080' &
 docs warn that without this check, a refresh JWT presented as a Bearer
 would pass signature/`iss`/`aud`/`exp` checks unchanged.
 
-The `client_credentials` grant does not issue refresh tokens, so we need
-to use another flow to get one. The exact command depends on which flows
-your AuthGate enables. Two options:
+The `client_credentials` grant does not issue refresh tokens — AuthGate
+only issues them on user-bearing flows. AuthGate does **not** support the
+Resource Owner Password Credentials grant (RFC 6749 §4.3), so a one-shot
+`curl` cannot mint a refresh token. The only realistic path is the
+authorization code flow, and only when AuthGate is configured to issue
+refresh tokens as JWTs.
 
-### Option A — Password grant (if enabled on AuthGate)
+### Path A — Authorization code flow yields a refresh JWT
+
+Run an authorization code + PKCE flow against AuthGate to obtain a token
+response containing `refresh_token`. The sibling
+[`03-oauth-mcp/dcr/oauth-client/`](../dcr/oauth-client/) example
+implements this flow end to end against the workshop's own OAuth server
+— adapt its issuer and client_id/client_secret to point at AuthGate, or
+write a minimal curl-driven flow yourself.
+
+Once you have the token response in `RESPONSE`:
 
 ```bash
-RESPONSE=$(curl -fsS -X POST https://authgate.local:8080/oauth/token \
-  -u my-service:s3cr3t \
-  -d 'grant_type=password' \
-  -d 'username=<your-test-user>' \
-  -d 'password=<password>' \
-  -d 'scope=mcp:read offline_access' \
-  -d 'resource=https://mcp.example/mcp')
-
 REFRESH=$(echo "$RESPONSE" | jq -r .refresh_token)
+
+# Confirm it is a JWT and carries type=refresh.
 echo "$REFRESH" | cut -d. -f2 | base64 --decode 2>/dev/null | jq '{type, aud, iss, exp}'
 ```
 
-### Option B — Authorization code flow
+Expected: `type` is `"refresh"`. If `jq` errors with "parse error" or
+the value is not three base64 segments separated by `.`, your AuthGate
+is issuing opaque refresh tokens — skip to Path B.
 
-Run the existing OAuth client from a sibling module to complete an
-interactive authorization code exchange and extract the refresh token
-from the response. Reference the `03-oauth-mcp/dcr/oauth-client/` example
-for the flow shape.
+### Path B — AuthGate issues opaque refresh tokens (degenerate case)
 
-### If neither option is available
-
-If AuthGate is configured to issue **opaque** refresh tokens (not JWTs),
-this scenario is degenerate: any non-JWT Bearer is rejected by the JWKS
-verifier at the signature step. Confirm with:
+If AuthGate's refresh tokens are not JWTs, the `type=="access"` defence
+is moot for this issuer: the JWKS verifier rejects the token at the
+signature parsing step, before reaching the `type` check. Confirm with
+any non-JWT string:
 
 ```bash
 curl -i -X POST http://localhost:8097/mcp \
@@ -394,10 +397,12 @@ curl -i -X POST http://localhost:8097/mcp \
   -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"curl","version":"1.0"}}}'
 ```
 
-Expected: `401 invalid_token`. Note this proves signature rejection, not
-the `type=="access"` defence.
+Expected: `401 invalid_token`. The server log will show a JWT parse
+error, **not** `non-access token rejected`. This satisfies the threat
+model (the refresh token is still rejected) but does not exercise the
+`type` check itself.
 
-### Verifying the rejection (Option A or B)
+### Verifying the rejection (Path A)
 
 Once you have `REFRESH` set to a JWT whose payload contains
 `"type":"refresh"`:
