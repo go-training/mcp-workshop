@@ -8,10 +8,10 @@ tokens.
 Two server variants are provided, mirroring the split already used in
 [`../client-credentials/`](../client-credentials/):
 
-| Variant                                    | Token verification             | When to use                                                          |
-| ------------------------------------------ | ------------------------------ | -------------------------------------------------------------------- |
-| [`oauth-server/`](oauth-server/)                       | **Local JWKS** (offline)        | Default. Lowest latency, no extra hop per request, no shared secret. |
-| [`oauth-server-introspect/`](oauth-server-introspect/) | **RFC 7662 introspection**      | When revocations must propagate immediately.                         |
+| Variant                                                | Token verification         | When to use                                                          |
+| ------------------------------------------------------ | -------------------------- | -------------------------------------------------------------------- |
+| [`oauth-server/`](oauth-server/)                       | **Local JWKS** (offline)   | Default. Lowest latency, no extra hop per request, no shared secret. |
+| [`oauth-server-introspect/`](oauth-server-introspect/) | **RFC 7662 introspection** | When revocations must propagate immediately.                         |
 
 A matching example client lives in [`oauth-client/`](oauth-client/). It runs
 the full Authorization Code + PKCE flow with **RFC 8707 `resource=` binding**
@@ -129,15 +129,15 @@ The server's responsibilities reduce to:
 
 ## JWKS vs Introspection
 
-| Aspect                       | JWKS ([`oauth-server/`](oauth-server/))                            | Introspection ([`oauth-server-introspect/`](oauth-server-introspect/)) |
-| ---------------------------- | --------------------------------------------------------------- | -------------------------------------------------------------------- |
-| Network calls per request    | 0 (after one-time JWKS fetch at startup)                        | 1 (POST to `/oauth/introspect`)                                      |
-| Token revocation propagation | Bounded by JWT `exp` (no immediate revocation)                  | Immediate (introspection returns `active: false`)                    |
-| Requires shared secret on RS | No                                                              | Yes (`-introspect-client-id` / `-introspect-client-secret`)          |
-| RFC 8707 `aud` check         | Yes (the `jwksauth.Verifier` enforces it intrinsically)         | Yes (we decode `aud` from the introspection response)                |
-| Refresh-token-as-access-token defence | Yes (we check the `type == "access"` claim explicitly) | Yes implicitly (refresh tokens introspect as `active: false`)        |
-| Resource-server boot dep     | OIDC discovery (`/.well-known/openid-configuration`) + JWKS URL | OIDC discovery for the introspection endpoint                        |
-| Sensible default             | **This one**                                                    | When immediate revocation matters more than per-request latency      |
+| Aspect                                | JWKS ([`oauth-server/`](oauth-server/))                         | Introspection ([`oauth-server-introspect/`](oauth-server-introspect/)) |
+| ------------------------------------- | --------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| Network calls per request             | 0 (after one-time JWKS fetch at startup)                        | 1 (POST to `/oauth/introspect`)                                        |
+| Token revocation propagation          | Bounded by JWT `exp` (no immediate revocation)                  | Immediate (introspection returns `active: false`)                      |
+| Requires shared secret on RS          | No                                                              | Yes (`-introspect-client-id` / `-introspect-client-secret`)            |
+| RFC 8707 `aud` check                  | Yes (the `jwksauth.Verifier` enforces it intrinsically)         | Yes (we decode `aud` from the introspection response)                  |
+| Refresh-token-as-access-token defence | Yes (we check the `type == "access"` claim explicitly)          | Yes implicitly (refresh tokens introspect as `active: false`)          |
+| Resource-server boot dep              | OIDC discovery (`/.well-known/openid-configuration`) + JWKS URL | OIDC discovery for the introspection endpoint                          |
+| Sensible default                      | **This one**                                                    | When immediate revocation matters more than per-request latency        |
 
 Both variants enforce that the JWT was minted for **this** resource by
 requiring `aud == -resource`. Without that check, any AuthGate-issued
@@ -215,10 +215,10 @@ The client command from above works unchanged; only the server differs.
 
 ## MCP tools
 
-| Tool              | Behaviour                                                                                                                  |
-| ----------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| `who_am_i`        | Returns subject, client id, issuer, audience(s), scopes, and AuthGate-attested extras (`uid`, `domain`, …) from the JWT.    |
-| `show_auth_token` | Returns a masked hint about the bearer (subject + client id) — never the raw token.                                         |
+| Tool              | Behaviour                                                                                                                |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `who_am_i`        | Returns subject, client id, issuer, audience(s), scopes, and AuthGate-attested extras (`uid`, `domain`, …) from the JWT. |
+| `show_auth_token` | Returns a masked hint about the bearer (subject + client id) — never the raw token.                                      |
 
 Both tools read the verified `auth.TokenInfo` from `req.Extra.TokenInfo`.
 Neither makes outbound calls (see Gap A).
@@ -253,12 +253,12 @@ curl -i -X POST http://localhost:8095/mcp \
 
 ## Verification matrix
 
-| Test                                                                                              | JWKS                | Introspection       |
-| ------------------------------------------------------------------------------------------------- | ------------------- | ------------------- |
-| Happy path: auth-code + PKCE, `who_am_i` returns user claims, server logs `audience verified`      | ✅                  | ✅                  |
-| Token bound to wrong `resource=`: 401, server logs `audience mismatch`                            | ✅                  | ✅                  |
-| Refresh JWT replayed as access token: 401, server logs `non-access token rejected`                | ✅                  | n/a (refresh tokens introspect as `active: false`) |
-| `go vet ./...`, `golangci-lint run ./...`, `make`, `make test`                                    | ✅                  | ✅                  |
+| Test                                                                                          | JWKS | Introspection                                      |
+| --------------------------------------------------------------------------------------------- | ---- | -------------------------------------------------- |
+| Happy path: auth-code + PKCE, `who_am_i` returns user claims, server logs `audience verified` | ✅    | ✅                                                  |
+| Token bound to wrong `resource=`: 401, server logs `audience mismatch`                        | ✅    | ✅                                                  |
+| Refresh JWT replayed as access token: 401, server logs `non-access token rejected`            | ✅    | n/a (refresh tokens introspect as `active: false`) |
+| `go vet ./...`, `golangci-lint run ./...`, `make`, `make test`                                | ✅    | ✅                                                  |
 
 Run the unit tests for the dcr/ directory:
 
@@ -272,48 +272,48 @@ go test ./03-oauth-mcp/dcr/...
 
 ### Both variants
 
-| Flag                   | Default                  | Meaning                                                                              |
-| ---------------------- | ------------------------ | ------------------------------------------------------------------------------------ |
-| `-addr`                | `:8095`                  | TCP address to listen on.                                                            |
-| `-resource`            | `http://localhost<addr>/mcp` | Public URL of this MCP resource. Also the audience the verifier requires.            |
-| `-auth-server`         | `http://localhost:8080`  | Issuer URL of the upstream AS.                                                       |
-| `-required-scopes`     | _(none)_                 | Space-separated scopes a token must contain.                                         |
-| `-log-level`           | `INFO`                   | `DEBUG` / `INFO` / `WARN` / `ERROR`.                                                 |
+| Flag               | Default                      | Meaning                                                                   |
+| ------------------ | ---------------------------- | ------------------------------------------------------------------------- |
+| `-addr`            | `:8095`                      | TCP address to listen on.                                                 |
+| `-resource`        | `http://localhost<addr>/mcp` | Public URL of this MCP resource. Also the audience the verifier requires. |
+| `-auth-server`     | `http://localhost:8080`      | Issuer URL of the upstream AS.                                            |
+| `-required-scopes` | _(none)_                     | Space-separated scopes a token must contain.                              |
+| `-log-level`       | `INFO`                       | `DEBUG` / `INFO` / `WARN` / `ERROR`.                                      |
 
 ### JWKS variant only (`oauth-server/`)
 
-| Flag                     | Default | Meaning                                                                  |
-| ------------------------ | ------- | ------------------------------------------------------------------------ |
-| `-private-claim-prefix`  | `extra` | Must match AuthGate's `JWT_PRIVATE_CLAIM_PREFIX`.                        |
-| `-discovery-timeout`     | `15s`   | Bounds the OIDC discovery call at startup.                               |
-| `-verify-timeout`        | `5s`    | Per-request JWT verification timeout (bounds JWKS fetch on cache miss).  |
+| Flag                    | Default | Meaning                                                                 |
+| ----------------------- | ------- | ----------------------------------------------------------------------- |
+| `-private-claim-prefix` | `extra` | Must match AuthGate's `JWT_PRIVATE_CLAIM_PREFIX`.                       |
+| `-discovery-timeout`    | `15s`   | Bounds the OIDC discovery call at startup.                              |
+| `-verify-timeout`       | `5s`    | Per-request JWT verification timeout (bounds JWKS fetch on cache miss). |
 
 ### Introspection variant only (`oauth-server-introspect/`)
 
-| Flag                          | Default | Meaning                                                                          |
-| ----------------------------- | ------- | -------------------------------------------------------------------------------- |
-| `-introspect-client-id`       | _(required)_ | RS credentials for calling `POST /oauth/introspect`.                         |
-| `-introspect-client-secret`   | _(required)_ | RS credentials for calling `POST /oauth/introspect`.                         |
-| `-introspection-url`          | _(discovered)_ | Override RFC 7662 endpoint. Default: OIDC discovery from `-auth-server`.   |
-| `-require-resource-binding`   | `true`  | Reject tokens whose introspection response has no `aud` claim.                   |
-| `-discovery-timeout`          | `15s`   | Bounds the OIDC discovery call at startup.                                       |
-| `-introspect-timeout`         | `5s`    | Per-request introspection HTTP timeout.                                          |
+| Flag                        | Default        | Meaning                                                                  |
+| --------------------------- | -------------- | ------------------------------------------------------------------------ |
+| `-introspect-client-id`     | _(required)_   | RS credentials for calling `POST /oauth/introspect`.                     |
+| `-introspect-client-secret` | _(required)_   | RS credentials for calling `POST /oauth/introspect`.                     |
+| `-introspection-url`        | _(discovered)_ | Override RFC 7662 endpoint. Default: OIDC discovery from `-auth-server`. |
+| `-require-resource-binding` | `true`         | Reject tokens whose introspection response has no `aud` claim.           |
+| `-discovery-timeout`        | `15s`          | Bounds the OIDC discovery call at startup.                               |
+| `-introspect-timeout`       | `5s`           | Per-request introspection HTTP timeout.                                  |
 
 ---
 
 ## Client flags (`oauth-client/`)
 
-| Flag             | Default                        | Meaning                                                                       |
-| ---------------- | ------------------------------ | ----------------------------------------------------------------------------- |
-| `-mcp-url`       | `http://localhost:8095/mcp`    | MCP streamable HTTP endpoint.                                                 |
-| `-auth-server`   | `http://localhost:8080`        | Issuer URL of the AS.                                                         |
-| `-resource`      | _(= `-mcp-url`)_               | RFC 8707 resource indicator sent on `/oauth/authorize` and `/oauth/token`.    |
-| `-client_id`     | _(required)_                   | OAuth client_id registered with the AS.                                       |
-| `-client_secret` | _(blank)_                      | Optional; omit for public clients (PKCE is always used).                      |
-| `-scopes`        | `openid profile email`         | Scopes to request.                                                            |
-| `-token-file`    | `~/.cache/dcr-mcp-client/<client_id>.json` | Where to persist tokens via `credstore.NewTokenFileStore`.          |
-| `-callback-port` | `8085`                         | Local TCP port for the OAuth callback.                                        |
-| `-force-reauth`  | `false`                        | Ignore the cached token and always run the interactive flow.                  |
+| Flag             | Default                                    | Meaning                                                                    |
+| ---------------- | ------------------------------------------ | -------------------------------------------------------------------------- |
+| `-mcp-url`       | `http://localhost:8095/mcp`                | MCP streamable HTTP endpoint.                                              |
+| `-auth-server`   | `http://localhost:8080`                    | Issuer URL of the AS.                                                      |
+| `-resource`      | _(= `-mcp-url`)_                           | RFC 8707 resource indicator sent on `/oauth/authorize` and `/oauth/token`. |
+| `-client_id`     | _(required)_                               | OAuth client_id registered with the AS.                                    |
+| `-client_secret` | _(blank)_                                  | Optional; omit for public clients (PKCE is always used).                   |
+| `-scopes`        | `openid profile email`                     | Scopes to request.                                                         |
+| `-token-file`    | `~/.cache/dcr-mcp-client/<client_id>.json` | Where to persist tokens via `credstore.NewTokenFileStore`.                 |
+| `-callback-port` | `8085`                                     | Local TCP port for the OAuth callback.                                     |
+| `-force-reauth`  | `false`                                    | Ignore the cached token and always run the interactive flow.               |
 
 ---
 
