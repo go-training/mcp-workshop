@@ -7,6 +7,8 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
+// WhoAmIInput is intentionally empty — the tool reads everything it needs
+// from the introspection response already attached to the request context.
 type WhoAmIInput struct{}
 
 // WhoAmIOutput surfaces a subset of the introspected token's claims to the
@@ -46,6 +48,10 @@ func whoAmIHandler(
 	return nil, out, nil
 }
 
+// ShowAuthTokenInput is empty — the tool reflects token metadata back to
+// the caller. The raw bearer is never returned (only a masked form derived
+// from the token's subject) so a malicious peer that calls this tool cannot
+// exfiltrate the token itself.
 type ShowAuthTokenInput struct{}
 
 type ShowAuthTokenOutput struct {

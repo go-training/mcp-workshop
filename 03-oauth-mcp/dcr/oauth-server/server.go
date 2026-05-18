@@ -17,6 +17,7 @@ import (
 	"log/slog"
 	"maps"
 	"net/http"
+	"net/url"
 	"os"
 	"os/signal"
 	"slices"
@@ -54,13 +55,13 @@ func (j *jwksVerifier) Verify(
 ) (*auth.TokenInfo, error) {
 	info, err := j.verifier.Verify(ctx, token)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %s", auth.ErrInvalidToken, err.Error())
+		return nil, fmt.Errorf("%w: %w", auth.ErrInvalidToken, err)
 	}
 
 	var typ rawTokenType
 	if err := info.IDToken.Claims(&typ); err != nil {
-		return nil, fmt.Errorf("%w: decode type claim: %s",
-			auth.ErrInvalidToken, err.Error())
+		return nil, fmt.Errorf("%w: decode type claim: %w",
+			auth.ErrInvalidToken, err)
 	}
 	if typ.Type != accessTokenType {
 		slog.WarnContext(ctx, "non-access token rejected",
@@ -111,6 +112,20 @@ func (j *jwksVerifier) Verify(
 	}
 	maps.Copy(out.Extra, info.Claims.Extras)
 	return out, nil
+}
+
+// buildResourceMetadataURL anchors the RFC 9728 metadata URL to the public
+// resource URL so a deployment with `-resource https://mcp.example.com/mcp`
+// does not advertise an unreachable `http://localhost...` discovery hint.
+func buildResourceMetadataURL(resourceURL, metadataPath string) (string, error) {
+	u, err := url.Parse(resourceURL)
+	if err != nil {
+		return "", err
+	}
+	if u.Scheme == "" || u.Host == "" {
+		return "", fmt.Errorf("resource URL %q missing scheme or host", resourceURL)
+	}
+	return u.Scheme + "://" + u.Host + metadataPath, nil
 }
 
 func checkAudience(ctx context.Context, expected string, got []string) error {
@@ -181,7 +196,11 @@ func main() {
 	adapter := &jwksVerifier{verifier: verifier, expectedAudience: resourceURL}
 
 	resourceMetadataPath := "/.well-known/oauth-protected-resource"
-	resourceMetadataURL := "http://localhost" + addr + resourceMetadataPath
+	resourceMetadataURL, err := buildResourceMetadataURL(resourceURL, resourceMetadataPath)
+	if err != nil {
+		slog.Error("invalid -resource URL", "resource", resourceURL, "err", err)
+		os.Exit(1)
+	}
 
 	authMiddleware := auth.RequireBearerToken(adapter.Verify, &auth.RequireBearerTokenOptions{
 		Scopes:              scopes,

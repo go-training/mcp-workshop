@@ -72,9 +72,12 @@ func TestMasked(t *testing.T) {
 		{"abcdefghij", "ab***ij"},
 	}
 	for _, tc := range cases {
-		if got := masked(tc.in); got != tc.want {
-			t.Errorf("masked(%q) = %q, want %q", tc.in, got, tc.want)
-		}
+		t.Run(tc.in, func(t *testing.T) {
+			t.Parallel()
+			if got := masked(tc.in); got != tc.want {
+				t.Errorf("masked(%q) = %q, want %q", tc.in, got, tc.want)
+			}
+		})
 	}
 }
 

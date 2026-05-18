@@ -161,6 +161,20 @@ func (i *introspector) Verify(
 	return info, nil
 }
 
+// buildResourceMetadataURL anchors the RFC 9728 metadata URL to the public
+// resource URL so a deployment with `-resource https://mcp.example.com/mcp`
+// does not advertise an unreachable `http://localhost...` discovery hint.
+func buildResourceMetadataURL(resourceURL, metadataPath string) (string, error) {
+	u, err := url.Parse(resourceURL)
+	if err != nil {
+		return "", err
+	}
+	if u.Scheme == "" || u.Host == "" {
+		return "", fmt.Errorf("resource URL %q missing scheme or host", resourceURL)
+	}
+	return u.Scheme + "://" + u.Host + metadataPath, nil
+}
+
 // checkAudience enforces the RFC 8707 resource binding contract. AuthGate's
 // introspection endpoint surfaces the JWT `aud` claim verbatim, so we can
 // reject tokens minted for a different MCP resource even when the user
@@ -279,7 +293,11 @@ func main() {
 	}
 
 	resourceMetadataPath := "/.well-known/oauth-protected-resource"
-	resourceMetadataURL := "http://localhost" + addr + resourceMetadataPath
+	resourceMetadataURL, err := buildResourceMetadataURL(resourceURL, resourceMetadataPath)
+	if err != nil {
+		slog.Error("invalid -resource URL", "resource", resourceURL, "err", err)
+		os.Exit(1)
+	}
 
 	authMiddleware := auth.RequireBearerToken(ins.Verify, &auth.RequireBearerTokenOptions{
 		Scopes:              scopes,
