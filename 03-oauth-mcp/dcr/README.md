@@ -1,419 +1,332 @@
-# OAuth MCP Server
+# OAuth 2.1 Authorization Code + PKCE MCP Resource Server
 
-This project demonstrates an OAuth 2.0 protected [Model Context Protocol (MCP)](https://github.com/mark3labs/mcp-go) server written in Go. It supports multiple OAuth providers (GitHub, GitLab, Gitea) and showcases authenticated MCP tool execution with token context propagation.
+This example demonstrates the **Authorization Code + PKCE** flow split: an
+[AuthGate](https://github.com/go-authgate/authgate) instance issues OAuth
+tokens, and this MCP server validates them. The MCP server itself issues no
+tokens.
 
-The implementation includes both an OAuth authorization server (`oauth-server/`) and an example OAuth client (`oauth-client/`), demonstrating the complete OAuth 2.0 flow with PKCE support and flexible storage options.
+Two server variants are provided, mirroring the split already used in
+[`../client-credentials/`](../client-credentials/):
 
----
+| Variant                                                | Token verification         | When to use                                                          |
+| ------------------------------------------------------ | -------------------------- | -------------------------------------------------------------------- |
+| [`oauth-server/`](oauth-server/)                       | **Local JWKS** (offline)   | Default. Lowest latency, no extra hop per request, no shared secret. |
+| [`oauth-server-introspect/`](oauth-server-introspect/) | **RFC 7662 introspection** | When revocations must propagate immediately.                         |
 
-## Architecture Overview
-
-The server provides:
-
-- **Multi-Provider OAuth Integration**: Supports GitHub, GitLab, and Gitea as OAuth 2.0 providers for user authentication
-- **Flexible Storage Backends**: Choose between in-memory or Redis-backed storage for OAuth data persistence
-- **MCP Server with Authentication**: Requires valid OAuth tokens for all MCP endpoint access
-- **Context-based Token Propagation**: Injects and propagates authentication tokens through Go's `context.Context`
-- **Two Authenticated MCP Tools**:
-  - `make_authenticated_request`: Makes authenticated HTTP requests to external APIs using the user's token
-  - `show_auth_token`: Displays a masked version of the current authorization token
-- **OAuth 2.0 Endpoints**: Implements required OAuth endpoints with provider integration
-- **Dynamic Client Registration**: Supports automatic client registration for MCP clients
+A matching example client lives in [`oauth-client/`](oauth-client/). It runs
+the full Authorization Code + PKCE flow with **RFC 8707 `resource=` binding**
+so the issued JWT's `aud` claim matches what the resource server enforces.
 
 ---
 
-## Flowcharts
+## What changed from the old `dcr/`
 
-### OAuth Authorization Flow with GitHub Integration
+If you have used this directory before, the rewrite is a hard
+backward-incompatible cut, by design:
+
+- The MCP server no longer hosts `/authorize`, `/token`, `/register`, or
+  `/.well-known/oauth-authorization-server`. Those endpoints live on AuthGate.
+- The MCP server publishes only RFC 9728 Protected Resource Metadata at
+  `/.well-known/oauth-protected-resource`, pointing clients at AuthGate.
+- The `make_authenticated_request` tool — which previously called GitHub
+  on behalf of the user using their upstream GitHub access token — is
+  removed (see **Gap A** below) and replaced with `who_am_i`, which
+  surfaces the verified JWT's claims.
+- The `-provider=gitlab` flag is removed; GitLab is not currently a
+  federated identity provider in AuthGate (see **Gap B** below).
+- The `mark3labs/mcp-go` dependency is no longer imported by anything in
+  this directory. The server is built on
+  [`github.com/modelcontextprotocol/go-sdk`](https://github.com/modelcontextprotocol/go-sdk).
+- The `pkg/store`, `pkg/core`, and `pkg/operation` packages are not imported
+  here either — the rewrite is closer to ~250 lines per binary instead of
+  ~600 lines for the old custom OAuth server.
+
+If you need the old self-contained behaviour, `git revert` is the cleanest
+path; it predates these changes.
+
+---
+
+## Gaps you should know about
+
+### Gap A — Upstream provider tokens are not available to MCP tools
+
+The previous `make_authenticated_request` tool worked because the old
+`oauth-server/` stored the **user's GitHub access token** from the federated
+login and exposed it via the request context. AuthGate's contract is
+different: it federates GitHub / Gitea / Microsoft Entra ID for **login**
+but issues its **own JWT** to relying parties. The MCP server never sees
+a GitHub PAT.
+
+AuthGate v0.11 does not expose upstream provider tokens to relying parties
+at runtime (the admin UI exposes connections at `/admin/users/:id/connections`,
+but that is an admin-only operation, not a callable API). This example
+therefore replaces `make_authenticated_request` with `who_am_i`, which
+returns claims from the verified JWT — including AuthGate's server-attested
+extras (`extra_uid`, `extra_domain`, …). If your MCP tool needs to call a
+downstream API on behalf of the user, the AuthGate-blessed pattern is to
+use a Client Credentials grant from the MCP server back to AuthGate for an
+audience that the downstream API trusts.
+
+A future AuthGate enhancement that exposes upstream tokens via a new
+`/oauth/userinfo/connections` endpoint would close this gap; out of scope
+for this example.
+
+### Gap B — No GitLab identity provider on AuthGate
+
+AuthGate ships GitHub, Gitea, and Microsoft Entra ID as upstream OAuth
+providers today. GitLab is not yet supported. Anyone who reached the old
+`dcr/` looking for a `-provider=gitlab` flag should know that AuthGate is
+the place to add a GitLab provider, not this example. The provider choice
+is configured server-side on AuthGate (see
+[AuthGate's `docs/OAUTH_SETUP.md`](https://github.com/go-authgate/authgate/blob/main/docs/OAUTH_SETUP.md));
+this `dcr/` example is provider-agnostic.
+
+---
+
+## Architecture
 
 ```mermaid
 sequenceDiagram
-    participant B as User-Agent (Browser)
-    participant C as MCP Client
-    participant M as MCP Server
-    participant G as GitHub OAuth
+    participant U as User
+    participant C as MCP Client (oauth-client/)
+    participant B as Browser
+    participant A as AuthGate (:8080)
+    participant M as MCP Server (oauth-server[-introspect]/ :8095)
 
-    C->>M: MCP request without token
-    M->>C: HTTP 401 Unauthorized
-
-    C->>M: GET /.well-known/oauth-protected-resource
-    M->>C: Return resource metadata
-
-    C->>M: GET /.well-known/oauth-authorization-server
-    M->>C: Authorization server metadata
-
-    alt Dynamic client registration
-        C->>M: POST /register
-        M->>C: Client credentials (client_id, client_secret)
+    C->>A: GET /.well-known/openid-configuration
+    A-->>C: discovery metadata
+    C->>B: open /oauth/authorize?...&resource=http://localhost:8095/mcp&code_challenge=...
+    B->>A: authorize
+    A-->>U: login + consent (federated GitHub/Gitea/Microsoft)
+    U-->>A: approve
+    A-->>B: 302 → http://127.0.0.1:8085/callback?code=...&state=...
+    B->>C: code at callback
+    C->>A: POST /oauth/token grant=authorization_code, resource=, code_verifier=
+    A-->>C: access_token (JWT with aud=http://localhost:8095/mcp), refresh_token
+    C->>M: POST /mcp Authorization: Bearer <jwt>
+    alt JWKS variant
+        M->>A: (one-time) GET /.well-known/jwks.json (cached)
+        M->>M: verify sig, iss, aud, exp, type==access
+    else introspection variant
+        M->>A: POST /oauth/introspect token=<jwt>
+        A-->>M: { active: true, aud, sub, client_id, scope, exp }
     end
-
-    Note over C: Generate PKCE code_verifier and code_challenge
-    C->>M: GET /authorize with client_id, state, PKCE challenge
-    M->>B: Redirect to GitHub OAuth (302)
-    B->>G: GitHub authorization request
-    Note over G: User authorizes application
-    G->>B: Redirect to client callback with authorization code
-    B->>C: Authorization code received at localhost:8085
-
-    C->>M: POST /token with code, client_id, PKCE code_verifier
-    M->>G: Exchange code for GitHub access token
-    G->>M: Return GitHub access token
-    M->>G: Fetch user info with access token
-    G->>M: Return user profile
-    M->>C: Return access token
-
-    C->>M: MCP request with Authorization header
-    M->>C: Authenticated MCP response
-    Note over C,M: MCP tools can now access user's GitHub token
+    M-->>C: MCP response (who_am_i / show_auth_token)
 ```
 
----
+The server's responsibilities reduce to:
 
-## Process Flow Explanation
-
-### 1. Authentication Middleware
-
-- `authMiddleware` protects all `/mcp` routes, requiring a valid `Authorization` header
-- Tokens are extracted via `core.AuthFromRequest` and injected into the request context
-- Context propagation enables MCP tools to access the authenticated user's GitHub token
-
-### 2. MCP Tools Implementation
-
-#### make_authenticated_request
-
-- Retrieves the GitHub access token from request context
-- Makes authenticated HTTP requests to external APIs using the user's token
-- Demonstrates how OAuth tokens flow through the MCP tool execution pipeline
-- Useful for accessing GitHub APIs or other services on behalf of the authenticated user
-
-#### show_auth_token
-
-- Extracts the current access token from the execution context
-- Returns a masked version showing only first and last 4 characters
-- Demonstrates token availability within MCP tool handlers
-
-### 3. Multi-Provider OAuth Integration
-
-#### GitHub Provider
-
-- **GitHubProvider**: Implements the `OAuthProvider` interface with GitHub-specific endpoints
-- **Authorization**: Redirects to `https://github.com/login/oauth/authorize` with proper parameters
-- **Token Exchange**: Exchanges authorization codes for GitHub access tokens via `https://github.com/login/oauth/access_token`
-- **User Info**: Fetches user profile from `https://api.github.com/user` for validation and logging
-
-#### GitLab Provider
-
-- **GitLabProvider**: Implements the `OAuthProvider` interface with GitLab-specific endpoints
-- **Authorization**: Redirects to `{gitlab_host}/oauth/authorize` with proper parameters
-- **Token Exchange**: Exchanges authorization codes for GitLab access tokens via `{gitlab_host}/oauth/token`
-- **User Info**: Fetches user profile from `{gitlab_host}/api/v4/user` for validation and logging
-- **Self-hosted Support**: Configurable GitLab host for self-hosted instances
-
-#### Gitea Provider
-
-- **GiteaProvider**: Implements the `OAuthProvider` interface with Gitea-specific endpoints
-- **Self-hosted Support**: Configurable Gitea host for self-hosted instances
-
-### 4. OAuth 2.0 Endpoints
-
-- `/.well-known/oauth-protected-resource`: MCP resource metadata for client discovery
-- `/.well-known/oauth-authorization-server`: Authorization server metadata with supported features
-- `/authorize`: Proxies authorization requests to GitHub with client credentials
-- `/token`: Handles authorization code exchange, validates with GitHub, and returns tokens
-- `/register`: Dynamic client registration endpoint that returns configured client credentials
+1. **RFC 9728 metadata** at `/.well-known/oauth-protected-resource`,
+   pointing clients at AuthGate.
+2. **Bearer-token verification** via
+   `auth.RequireBearerToken` from
+   [`github.com/modelcontextprotocol/go-sdk/auth`](https://pkg.go.dev/github.com/modelcontextprotocol/go-sdk/auth),
+   with one of two underlying verifiers.
+3. **MCP tools** that read the verified `auth.TokenInfo` from the request
+   context — never the raw bearer.
 
 ---
 
-## Server Architecture
+## JWKS vs Introspection
 
-```mermaid
-flowchart TD
-    Client["MCP Client"] -- "Authorization: Bearer token" --> AuthMiddleware["Auth Middleware"]
-    AuthMiddleware -- "401 if no token" --> Unauthorized["HTTP 401"]
-    AuthMiddleware -- "Extract & inject token" --> ContextInjection["Context Injection"]
-    ContextInjection --> MCPServer["MCP Server Handler"]
-    MCPServer --> ToolHandler["MCP Tool Handler"]
+| Aspect                                | JWKS ([`oauth-server/`](oauth-server/))                         | Introspection ([`oauth-server-introspect/`](oauth-server-introspect/)) |
+| ------------------------------------- | --------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| Network calls per request             | 0 (after one-time JWKS fetch at startup)                        | 1 (POST to `/oauth/introspect`)                                        |
+| Token revocation propagation          | Bounded by JWT `exp` (no immediate revocation)                  | Immediate (introspection returns `active: false`)                      |
+| Requires shared secret on RS          | No                                                              | Yes (`-introspect-client-id` / `-introspect-client-secret`)            |
+| RFC 8707 `aud` check                  | Yes (the `jwksauth.Verifier` enforces it intrinsically)         | Yes (we decode `aud` from the introspection response)                  |
+| Refresh-token-as-access-token defence | Yes (we check the `type == "access"` claim explicitly)          | Yes implicitly (refresh tokens introspect as `active: false`)          |
+| Resource-server boot dep              | OIDC discovery (`/.well-known/openid-configuration`) + JWKS URL | OIDC discovery for the introspection endpoint                          |
+| Sensible default                      | **This one**                                                    | When immediate revocation matters more than per-request latency        |
 
-    ToolHandler --> AuthTool1["show_auth_token"]
-    ToolHandler --> AuthTool2["make_authenticated_request"]
+Both variants enforce that the JWT was minted for **this** resource by
+requiring `aud == -resource`. Without that check, any AuthGate-issued
+token would be accepted by any MCP server sharing the same issuer.
 
-    AuthTool1 --> Context1["Extract token from context"]
-    Context1 --> Mask["Return masked token"]
+---
 
-    AuthTool2 --> Context2["Extract token from context"]
-    Context2 --> ExternalAPI["External API with user's token"]
+## Prerequisites
 
-    subgraph "OAuth Flow"
-        Register["/register"] --> ClientCreds["Return client credentials"]
-        Authorize["/authorize"] --> GitHub["Redirect to GitHub"]
-        TokenEndpoint["/token"] --> GitHubToken["Exchange with GitHub"]
-        GitHubToken --> UserInfo["Fetch GitHub user info"]
-    end
+This example assumes an AuthGate instance reachable at `http://localhost:8080`
+(or `https://authgate.local:8080` if you mirror the deployment used in
+`../client-credentials/`). At minimum the AuthGate `.env` should set:
 
-    style AuthMiddleware fill:#ff9999
-    style ContextInjection fill:#99ff99
-    style GitHub fill:#333,color:#fff
+```ini
+ENABLE_DYNAMIC_CLIENT_REGISTRATION=true   # only if you want the oauth-client to self-register
+OAUTH_GITHUB_CLIENT_ID=...                # or any other federated provider
+OAUTH_GITHUB_CLIENT_SECRET=...
+JWT_PRIVATE_CLAIM_PREFIX=extra            # default; pass -private-claim-prefix to override
 ```
 
----
-
-## Getting Started
-
-### Prerequisites
-
-1. **Create a GitHub OAuth App**:
-   - Go to GitHub Settings → Developer settings → OAuth Apps
-   - Click "New OAuth App"
-   - Set **Authorization callback URL** to: `http://localhost:8085/oauth/callback`
-   - Note your **Client ID** and **Client Secret**
-
-### Build & Run
-
-1. Change to the server directory:
-
-   ```bash
-   cd 03-oauth-mcp/dcr/oauth-server
-   ```
-
-2. Start the server with your OAuth credentials:
-
-   **GitHub (default with memory store):**
-
-   ```bash
-   go run . -client_id="your-github-client-id" -client_secret="your-github-client-secret"
-   ```
-
-   **GitHub with Redis store:**
-
-   ```bash
-   # Start Redis first
-   docker run -d -p 6379:6379 redis:alpine
-
-   # Run server with Redis
-   go run . -client_id="your-id" -client_secret="your-secret" -store redis -redis-addr localhost:6379
-   ```
-
-   **GitLab.com:**
-
-   ```bash
-   go run . -provider="gitlab" -client_id="your-gitlab-client-id" -client_secret="your-gitlab-client-secret"
-   ```
-
-   **Self-hosted GitLab:**
-
-   ```bash
-   go run . -provider="gitlab" -gitlab-host="https://gitlab.example.com" -client_id="your-client-id" -client_secret="your-client-secret"
-   ```
-
-   **Gitea:**
-
-   ```bash
-   go run . -provider="gitea" -gitea-host="https://gitea.example.com" -client_id="your-client-id" -client_secret="your-client-secret"
-   ```
-
-3. Optional flags:
-
-   ```bash
-   go run . -client_id="your-id" -client_secret="your-secret" \
-     -addr=":8095" \
-     -log-level="INFO" \
-     -store="redis" \
-     -redis-addr="localhost:6379" \
-     -redis-password="mypassword" \
-     -redis-db=1
-   ```
-
-### Server Endpoints
-
-| Endpoint                                  | Method          | Description                                 | Auth Required   |
-| ----------------------------------------- | --------------- | ------------------------------------------- | --------------- |
-| `/mcp`                                    | POST/GET/DELETE | MCP protocol endpoint                       | ✅ Bearer token |
-| `/.well-known/oauth-protected-resource`   | GET             | Resource metadata                           | ❌              |
-| `/.well-known/oauth-authorization-server` | GET             | OAuth server metadata                       | ❌              |
-| `/authorize`                              | GET             | OAuth authorization (redirects to provider) | ❌              |
-| `/token`                                  | POST            | Token exchange with OAuth provider          | ❌              |
-| `/register`                               | POST            | Dynamic client registration                 | ❌              |
-
-### Testing with curl
+A minimal `docker run` line:
 
 ```bash
-# Get OAuth metadata
-curl http://localhost:8095/.well-known/oauth-authorization-server
+docker run --rm -p 8080:8080 \
+  -e OAUTH_GITHUB_CLIENT_ID=... \
+  -e OAUTH_GITHUB_CLIENT_SECRET=... \
+  -e ENABLE_DYNAMIC_CLIENT_REGISTRATION=true \
+  ghcr.io/go-authgate/authgate:latest
+```
 
-# Get protected resource metadata
-curl http://localhost:8095/.well-known/oauth-protected-resource
+Register a client for this example (or rely on DCR via `POST /oauth/register`
+from the example client). Make sure the client's registered redirect URI
+includes `http://127.0.0.1:8085/callback`.
 
-# Register a client
-curl -X POST http://localhost:8095/register \
+---
+
+## Quickstart — JWKS variant
+
+```bash
+# Terminal 1: AuthGate (see above)
+
+# Terminal 2: MCP resource server (JWKS, local verification)
+go run ./03-oauth-mcp/dcr/oauth-server \
+  -auth-server http://localhost:8080 \
+  -resource http://localhost:8095/mcp
+
+# Terminal 3: example client
+go run ./03-oauth-mcp/dcr/oauth-client \
+  -auth-server http://localhost:8080 \
+  -mcp-url http://localhost:8095/mcp \
+  -client_id <your-registered-client-id> \
+  -client_secret <client-secret-if-confidential> \
+  -scopes "openid profile email"
+```
+
+The client opens a browser to AuthGate, you log in via the federated
+provider, the browser redirects to `127.0.0.1:8085/callback`, the client
+exchanges the code for a token with `resource=http://localhost:8095/mcp`,
+and then calls `who_am_i` / `show_auth_token` on the MCP server.
+
+## Quickstart — introspection variant
+
+```bash
+# Terminal 2: MCP resource server (introspection)
+go run ./03-oauth-mcp/dcr/oauth-server-introspect \
+  -auth-server http://localhost:8080 \
+  -resource http://localhost:8095/mcp \
+  -introspect-client-id mcp-resource \
+  -introspect-client-secret rs-secret
+```
+
+The client command from above works unchanged; only the server differs.
+
+---
+
+## MCP tools
+
+| Tool              | Behaviour                                                                                                                |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `who_am_i`        | Returns subject, client id, issuer, audience(s), scopes, and AuthGate-attested extras (`uid`, `domain`, …) from the JWT. |
+| `show_auth_token` | Returns a masked hint about the bearer (subject + client id) — never the raw token.                                      |
+
+Both tools read the verified `auth.TokenInfo` from `req.Extra.TokenInfo`.
+Neither makes outbound calls (see Gap A).
+
+---
+
+## Curl walkthrough
+
+```bash
+# 1. Discover protected-resource metadata
+curl -s http://localhost:8095/.well-known/oauth-protected-resource | jq
+
+# 2. Discover the AS endpoints
+curl -s http://localhost:8080/.well-known/openid-configuration \
+  | jq '{authorization_endpoint, token_endpoint, introspection_endpoint, jwks_uri}'
+
+# 3. Without a token: 401 + RFC 9728 hint
+curl -i -X POST http://localhost:8095/mcp \
   -H "Content-Type: application/json" \
-  -d '{
-    "redirect_uris": ["http://localhost:8085/oauth/callback"],
-    "grant_types": ["authorization_code"],
-    "response_types": ["code"]
-  }'
+  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}'
+#   → HTTP/1.1 401 Unauthorized
+#     WWW-Authenticate: Bearer ..., resource_metadata="..."
 
-# Try MCP without token (should get 401)
-curl -X POST http://localhost:8095/mcp
-
-# Test with valid token (after OAuth flow)
-curl -X POST http://localhost:8095/mcp \
-  -H "Authorization: Bearer your-oauth-token" \
-  -H "Content-Type: application/json"
+# 4. With a JWT bound to the wrong audience: 401 invalid_token, server logs "audience mismatch"
+TOKEN=...  # from a token exchange where you sent resource=http://localhost:9999/mcp
+curl -i -X POST http://localhost:8095/mcp \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}'
 ```
 
 ---
 
-## Implementation Details
+## Verification matrix
 
-### Key Components
+| Test                                                                                          | JWKS | Introspection                                      |
+| --------------------------------------------------------------------------------------------- | ---- | -------------------------------------------------- |
+| Happy path: auth-code + PKCE, `who_am_i` returns user claims, server logs `audience verified` | ✅    | ✅                                                  |
+| Token bound to wrong `resource=`: 401, server logs `audience mismatch`                        | ✅    | ✅                                                  |
+| Refresh JWT replayed as access token: 401, server logs `non-access token rejected`            | ✅    | n/a (refresh tokens introspect as `active: false`) |
+| `go vet ./...`, `golangci-lint run ./...`, `make`, `make test`                                | ✅    | ✅                                                  |
 
-- **`MCPServer`**: Wraps the mark3labs/mcp-go server with OAuth authentication
-- **OAuth Providers**:
-  - `GitHubProvider`: GitHub OAuth 2.0 integration
-  - `GitLabProvider`: GitLab OAuth 2.0 integration with self-hosted support
-  - `GiteaProvider`: Gitea OAuth 2.0 integration with self-hosted support
-- **Storage Layer**:
-  - `store.MemoryStore`: In-memory storage for development
-  - `store.RedisStore`: Redis-backed persistent storage for production
-  - Factory pattern for easy store creation
-- **`authMiddleware`**: Gin middleware that enforces Authorization header requirements
-- **Context Injection**: Uses `core.AuthFromRequest` to propagate tokens through request context
-
-### File Structure
-
-```txt
-03-oauth-mcp/
-├── oauth-server/
-│   ├── server.go              # Main server with MCP and OAuth endpoints
-│   ├── oauth_provider.go      # OAuth provider interface definition
-│   ├── provider_github.go     # GitHub OAuth implementation
-│   ├── provider_gitlab.go     # GitLab OAuth implementation
-│   ├── provider_gitea.go      # Gitea OAuth implementation
-│   ├── middleware.go          # Authentication middleware
-│   ├── auth_meta.go           # Client registration metadata
-│   └── README.md              # Server documentation
-├── oauth-client/
-│   ├── client.go              # OAuth MCP client example
-│   └── README.md              # Client documentation
-└── README.md                  # This file
-```
-
-### Security Features
-
-- **PKCE Support**: Implements Proof Key for Code Exchange for enhanced security
-- **State Parameter Validation**: Prevents CSRF attacks in OAuth flow
-- **Token Masking**: Sensitive tokens are masked in logs and responses
-- **CORS Configuration**: Proper CORS headers for cross-origin requests
-- **Request Timeouts**: 30-second timeouts on all external HTTP requests
-- **Client Secret Validation**: Validates client credentials before token exchange
-- **Redirect URI Validation**: Ensures redirect URIs match registered URIs
-
-### Storage Options
-
-#### Memory Store
-
-- **Pros**: No external dependencies, fast, simple setup
-- **Cons**: Data lost on restart, not suitable for production with multiple instances
-- **Use case**: Development and testing
-
-#### Redis Store
-
-- **Pros**: Persistent storage, production-ready, supports multiple server instances
-- **Cons**: Requires Redis server
-- **Use case**: Production deployments
-
-See [oauth-server/README.md](oauth-server/README.md) for detailed storage configuration.
-
----
-
-## Testing the Complete Flow
-
-1. **Start the server** with your OAuth credentials:
-
-   ```bash
-   cd 03-oauth-mcp/dcr/oauth-server
-   go run . -client_id="your-id" -client_secret="your-secret"
-   ```
-
-2. **Run the client** in a separate terminal:
-
-   ```bash
-   cd 03-oauth-mcp/dcr/oauth-client
-   go run .
-   ```
-
-3. **Authorize the application** - the client will open your browser to the OAuth provider
-4. **Observe the logs** showing successful token exchange and user info fetch
-5. **See MCP tools execute** with the authenticated token
-
-### Testing with Different Configurations
-
-**Development setup (memory store):**
+Run the unit tests for the dcr/ directory:
 
 ```bash
-# Terminal 1: Server
-cd 03-oauth-mcp/dcr/oauth-server
-go run . -client_id=<id> -client_secret=<secret>
-
-# Terminal 2: Client
-cd 03-oauth-mcp/dcr/oauth-client
-go run .
-```
-
-**Production setup (Redis store):**
-
-```bash
-# Terminal 1: Redis
-docker run -d -p 6379:6379 redis:alpine
-
-# Terminal 2: Server
-cd 03-oauth-mcp/dcr/oauth-server
-go run . -client_id=<id> -client_secret=<secret> -store redis -log-level INFO
-
-# Terminal 3: Client
-cd 03-oauth-mcp/dcr/oauth-client
-go run .
+go test ./03-oauth-mcp/dcr/...
 ```
 
 ---
 
-## See Also
+## Server flags
 
-- [OAuth Server Documentation](oauth-server/README.md) - Detailed server configuration and storage options
-- [OAuth Client Documentation](oauth-client/README.md) - Complete client implementation guide
-- [Store Package](../pkg/store/README.md) - Storage layer implementation details
+### Both variants
+
+| Flag               | Default                      | Meaning                                                                   |
+| ------------------ | ---------------------------- | ------------------------------------------------------------------------- |
+| `-addr`            | `:8095`                      | TCP address to listen on.                                                 |
+| `-resource`        | `http://localhost<addr>/mcp` | Public URL of this MCP resource. Also the audience the verifier requires. |
+| `-auth-server`     | `http://localhost:8080`      | Issuer URL of the upstream AS.                                            |
+| `-required-scopes` | _(none)_                     | Space-separated scopes a token must contain.                              |
+| `-log-level`       | `INFO`                       | `DEBUG` / `INFO` / `WARN` / `ERROR`.                                      |
+
+### JWKS variant only (`oauth-server/`)
+
+| Flag                    | Default | Meaning                                                                 |
+| ----------------------- | ------- | ----------------------------------------------------------------------- |
+| `-private-claim-prefix` | `extra` | Must match AuthGate's `JWT_PRIVATE_CLAIM_PREFIX`.                       |
+| `-discovery-timeout`    | `15s`   | Bounds the OIDC discovery call at startup.                              |
+| `-verify-timeout`       | `5s`    | Per-request JWT verification timeout (bounds JWKS fetch on cache miss). |
+
+### Introspection variant only (`oauth-server-introspect/`)
+
+| Flag                        | Default        | Meaning                                                                  |
+| --------------------------- | -------------- | ------------------------------------------------------------------------ |
+| `-introspect-client-id`     | _(required)_   | RS credentials for calling `POST /oauth/introspect`.                     |
+| `-introspect-client-secret` | _(required)_   | RS credentials for calling `POST /oauth/introspect`.                     |
+| `-introspection-url`        | _(discovered)_ | Override RFC 7662 endpoint. Default: OIDC discovery from `-auth-server`. |
+| `-require-resource-binding` | `true`         | Reject tokens whose introspection response has no `aud` claim.           |
+| `-discovery-timeout`        | `15s`          | Bounds the OIDC discovery call at startup.                               |
+| `-introspect-timeout`       | `5s`           | Per-request introspection HTTP timeout.                                  |
 
 ---
 
-## Command-Line Flags
+## Client flags (`oauth-client/`)
 
-### Required Flags
-
-- `-client_id`: OAuth 2.0 Client ID from your provider
-- `-client_secret`: OAuth 2.0 Client Secret from your provider
-
-### Optional Flags
-
-- `-addr`: Server address (default: `:8095`)
-- `-provider`: OAuth provider - `github`, `gitlab`, or `gitea` (default: `github`)
-- `-gitea-host`: Gitea host URL (default: `https://gitea.com`)
-- `-gitlab-host`: GitLab host URL (default: `https://gitlab.com`)
-- `-log-level`: Log level - `DEBUG`, `INFO`, `WARN`, `ERROR` (default: `DEBUG`)
-- `-store`: Storage type - `memory` or `redis` (default: `memory`)
-- `-redis-addr`: Redis address (default: `localhost:6379`)
-- `-redis-password`: Redis password (optional)
-- `-redis-db`: Redis database number (default: `0`)
+| Flag             | Default                                    | Meaning                                                                    |
+| ---------------- | ------------------------------------------ | -------------------------------------------------------------------------- |
+| `-mcp-url`       | `http://localhost:8095/mcp`                | MCP streamable HTTP endpoint.                                              |
+| `-auth-server`   | `http://localhost:8080`                    | Issuer URL of the AS.                                                      |
+| `-resource`      | _(= `-mcp-url`)_                           | RFC 8707 resource indicator sent on `/oauth/authorize` and `/oauth/token`. |
+| `-client_id`     | _(required)_                               | OAuth client_id registered with the AS.                                    |
+| `-client_secret` | _(blank)_                                  | Optional; omit for public clients (PKCE is always used).                   |
+| `-scopes`        | `openid profile email`                     | Scopes to request.                                                         |
+| `-token-file`    | `~/.cache/dcr-mcp-client/<client_id>.json` | Where to persist tokens via `credstore.NewTokenFileStore`.                 |
+| `-callback-port` | `8085`                                     | Local TCP port for the OAuth callback.                                     |
+| `-force-reauth`  | `false`                                    | Ignore the cached token and always run the interactive flow.               |
 
 ---
 
-## References
+## See also
 
-- [MCP Documentation](https://mark3.ai/docs/mcp/)
-- [OAuth 2.0 RFC6749](https://datatracker.ietf.org/doc/html/rfc6749)
-- [PKCE RFC7636](https://datatracker.ietf.org/doc/html/rfc7636)
-- [GitHub OAuth Apps](https://docs.github.com/en/apps/oauth-apps)
-- [GitLab OAuth Documentation](https://docs.gitlab.com/ee/api/oauth2.html)
-- [Gitea OAuth Documentation](https://docs.gitea.io/en-us/oauth2-provider/)
-- [mark3labs/mcp-go](https://github.com/mark3labs/mcp-go)
-- [Gin Web Framework](https://gin-gonic.com/)
-- [Redis](https://redis.io/)
+- [`../client-credentials/`](../client-credentials/) — the machine-to-machine
+  variant of this same split.
+- [AuthGate docs](https://github.com/go-authgate/authgate/tree/main/docs) —
+  `MCP.md`, `OAUTH_SETUP.md`.
+- [RFC 8707](https://datatracker.ietf.org/doc/html/rfc8707) — resource
+  indicators.
+- [RFC 9728](https://datatracker.ietf.org/doc/html/rfc9728) — protected
+  resource metadata.
+- [Model Context Protocol Go SDK](https://github.com/modelcontextprotocol/go-sdk).
+- [`go-authgate/sdk-go`](https://github.com/go-authgate/sdk-go) — `jwksauth`,
+  `middleware`, `discovery`, `credstore`, `authflow`.
