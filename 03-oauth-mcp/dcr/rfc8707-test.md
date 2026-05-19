@@ -109,6 +109,7 @@ dcr JWKS MCP server starting addr=:8095 resource=http://localhost:8095/mcp ...
   -mcp-url     http://localhost:8095/mcp \
   -resource    http://localhost:8095/mcp \
   -token-file  /tmp/token_A.json \
+  -scopes      "mcp:read" \
   -log-level   INFO
 ```
 
@@ -129,6 +130,7 @@ dcr JWKS MCP server starting addr=:8095 resource=http://localhost:8095/mcp ...
   -mcp-url     http://localhost:8096/mcp \
   -resource    http://localhost:8096/mcp \
   -token-file  /tmp/token_B.json \
+  -scopes      "mcp:read" \
   -force-reauth \
   -log-level   INFO
 ```
