@@ -142,11 +142,21 @@ dcr JWKS MCP server starting addr=:8095 resource=http://localhost:8095/mcp ...
 > RFC 8707 的核心：**同一個 client 可以為不同 resource 取得 audience-bound
 > 的 token**。
 
-可以解碼 JWT 驗證：
+可以解碼 JWT 驗證。`-token-file` 寫出的是 credstore 格式
+（`{ "data": { "<client_id>": "<stringified token JSON>" } }`），要先把
+內層字串用 `fromjson` 拆出來；JWT payload 是 base64url 編碼，需要轉成標準
+base64 並補上 `=` padding 才能 decode：
 
 ```bash
-jq -r .access_token /tmp/token_A.json | cut -d. -f2 | base64 -d 2>/dev/null | jq '{aud, client_id, sub, type}'
-jq -r .access_token /tmp/token_B.json | cut -d. -f2 | base64 -d 2>/dev/null | jq '{aud, client_id, sub, type}'
+decode_jwt_payload() {
+  local payload
+  payload=$(jq -r '.data | to_entries[0].value | fromjson | .access_token' "$1" | cut -d. -f2)
+  local pad=$(( (4 - ${#payload} % 4) % 4 ))
+  printf '%s%*s' "$payload" "$pad" '' | tr ' ' '=' | tr '_-' '/+' | base64 -d
+}
+
+decode_jwt_payload /tmp/token_A.json | jq '{aud, client_id, sub, scope, type}'
+decode_jwt_payload /tmp/token_B.json | jq '{aud, client_id, sub, scope, type}'
 ```
 
 預期輸出：
@@ -162,11 +172,12 @@ jq -r .access_token /tmp/token_B.json | cut -d. -f2 | base64 -d 2>/dev/null | jq
 
 ## 步驟三：四象限交叉驗證
 
-把兩張 token 抽成環境變數方便 curl：
+把兩張 token 抽成環境變數方便 curl（同樣要透過 credstore wrapper 取出
+`access_token`）：
 
 ```bash
-export TOKEN_A=$(jq -r .access_token /tmp/token_A.json)
-export TOKEN_B=$(jq -r .access_token /tmp/token_B.json)
+export TOKEN_A=$(jq -r '.data | to_entries[0].value | fromjson | .access_token' /tmp/token_A.json)
+export TOKEN_B=$(jq -r '.data | to_entries[0].value | fromjson | .access_token' /tmp/token_B.json)
 ```
 
 `initialize` 是不需要 session 的 MCP JSON-RPC 方法，最適合拿來測 bearer
