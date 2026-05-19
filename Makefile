@@ -43,7 +43,8 @@ endif
 # RESET  :=
 
 # Find all directories under project containing Go main packages (relative to workspace)
-GODIRS := $(shell find . -type f -name '*.go' | xargs grep -l '^package main' | xargs -n1 dirname | sort -u)
+# Exclude .claude, .git, vendor, and bin to avoid picking up worktree copies or build output
+GODIRS := $(shell find . -type d \( -name .claude -o -name .git -o -name vendor -o -name bin \) -prune -o -type f -name '*.go' -print | xargs grep -l '^package main' | xargs -n1 dirname | sort -u)
 BINS := $(foreach dir,$(GODIRS),$(notdir $(dir)))
 
 .PHONY: all clean $(BINS) test test-verbose test-cover test-store test-colors lint fmt mock help
