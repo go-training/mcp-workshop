@@ -1,6 +1,8 @@
-// Package main is a verification client for the dcr/ MCP server. It performs
-// OAuth 2.1 Authorization Code + PKCE against an external authorization
-// server (e.g. AuthGate), persists the resulting tokens via
+// Package main is a verification client for the dcr/ MCP server. It discovers
+// the authorization server from the MCP resource server per RFC 9728
+// (unauthenticated probe → 401 → Protected Resource Metadata), then performs
+// OAuth 2.1 Authorization Code + PKCE against that authorization server
+// (e.g. AuthGate), persists the resulting tokens via
 // github.com/go-authgate/sdk-go/credstore, and then exercises the MCP
 // resource server using github.com/modelcontextprotocol/go-sdk.
 //
@@ -36,6 +38,7 @@ import (
 	"github.com/go-authgate/sdk-go/credstore"
 	"github.com/go-authgate/sdk-go/discovery"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
+	"github.com/modelcontextprotocol/go-sdk/oauthex"
 )
 
 func main() {
@@ -132,13 +135,19 @@ func run() error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
 
-	disco, err := discovery.NewClient(cfg.authServer)
+	// RFC 9728: discover the authorization server from the MCP server itself
+	// (unauthenticated request → 401 → Protected Resource Metadata) instead of
+	// trusting -auth-server blindly. This is what the MCP authorization spec
+	// mandates; the flag is only a fallback (see discoverAuthServer).
+	authServer := discoverAuthServer(ctx, cfg)
+
+	disco, err := discovery.NewClient(authServer)
 	if err != nil {
 		return fmt.Errorf("discovery client: %w", err)
 	}
 	meta, err := disco.Fetch(ctx)
 	if err != nil {
-		return fmt.Errorf("OIDC discovery from %s: %w", cfg.authServer, err)
+		return fmt.Errorf("OIDC discovery from %s: %w", authServer, err)
 	}
 	if meta.AuthorizationEndpoint == "" || meta.TokenEndpoint == "" {
 		return fmt.Errorf(
@@ -183,6 +192,98 @@ func run() error {
 	}
 	slog.Info("client run complete")
 	return nil
+}
+
+// discoverAuthServer implements the RFC 9728 authorization-server discovery
+// that the MCP authorization spec mandates: probe the MCP server with no token,
+// read the resource_metadata pointer from the 401 WWW-Authenticate header,
+// fetch the Protected Resource Metadata, and return the authorization server it
+// names. The -auth-server flag is only a fallback for when the probe or the
+// metadata fetch cannot complete (e.g. the server omits the hint and is not at
+// the conventional well-known path).
+func discoverAuthServer(ctx context.Context, cfg *config) string {
+	metaURL := probeResourceMetadataURL(ctx, cfg.mcpURL)
+	if metaURL == "" {
+		// RFC 9728 §3.1 well-known fallback when the 401 carries no hint.
+		metaURL = wellKnownPRMURL(cfg.mcpURL)
+		slog.Info("no resource_metadata hint on 401 — trying well-known URI",
+			"resource_metadata_url", metaURL)
+	}
+
+	prm, err := oauthex.GetProtectedResourceMetadata(
+		ctx, metaURL, cfg.resource, http.DefaultClient)
+	if err != nil {
+		slog.Warn("RFC 9728 discovery failed — falling back to -auth-server",
+			"resource_metadata_url", metaURL,
+			"auth_server", cfg.authServer, "err", err)
+		return cfg.authServer
+	}
+	if len(prm.AuthorizationServers) == 0 {
+		slog.Warn("protected resource metadata named no authorization_servers — "+
+			"falling back to -auth-server", "auth_server", cfg.authServer)
+		return cfg.authServer
+	}
+
+	as := prm.AuthorizationServers[0]
+	slog.Info("discovered authorization server via RFC 9728",
+		"resource_metadata_url", metaURL,
+		"resource", prm.Resource,
+		"authorization_server", as,
+	)
+	return as
+}
+
+// probeResourceMetadataURL makes one unauthenticated MCP request and returns
+// the resource_metadata URL from the 401 WWW-Authenticate challenge
+// (RFC 9728 §5.1). It returns "" if the server does not answer with that hint,
+// so the caller can fall back to the well-known URI.
+func probeResourceMetadataURL(ctx context.Context, mcpURL string) string {
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, mcpURL,
+		strings.NewReader(`{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}`))
+	if err != nil {
+		return ""
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/json, text/event-stream")
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		slog.Warn("unauthenticated probe failed", "err", err)
+		return ""
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusUnauthorized {
+		slog.Warn("unauthenticated probe did not return 401", "status", resp.StatusCode)
+		return ""
+	}
+
+	headers := resp.Header.Values("WWW-Authenticate")
+	slog.Info("unauthenticated probe returned 401 as expected",
+		"www_authenticate", strings.Join(headers, "; "))
+
+	challenges, err := oauthex.ParseWWWAuthenticate(headers)
+	if err != nil {
+		slog.Warn("could not parse WWW-Authenticate header", "err", err)
+		return ""
+	}
+	for _, c := range challenges {
+		if u := c.Params["resource_metadata"]; u != "" {
+			return u
+		}
+	}
+	return ""
+}
+
+// wellKnownPRMURL builds the RFC 9728 well-known Protected Resource Metadata
+// URL at the origin of an MCP endpoint, used only when the 401 carried no
+// resource_metadata hint.
+func wellKnownPRMURL(mcpURL string) string {
+	u, err := url.Parse(mcpURL)
+	if err != nil {
+		return strings.TrimRight(mcpURL, "/") + "/.well-known/oauth-protected-resource"
+	}
+	return u.Scheme + "://" + u.Host + "/.well-known/oauth-protected-resource"
 }
 
 // errNoCachedToken means the on-disk credstore has no usable token for this

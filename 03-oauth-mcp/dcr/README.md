@@ -85,6 +85,15 @@ this `dcr/` example is provider-agnostic.
 
 ## Architecture
 
+The flow follows the
+[MCP authorization spec](https://modelcontextprotocol.io/specification/2025-11-25/basic/authorization):
+the client does **not** assume where the authorization server lives. It first
+hits the MCP server with no token, gets a `401` whose `WWW-Authenticate` header
+points at the [RFC 9728](https://datatracker.ietf.org/doc/html/rfc9728)
+Protected Resource Metadata, reads the `authorization_servers` from that
+metadata, and only then runs OIDC/RFC 8414 discovery against the AS it was told
+to use.
+
 ```mermaid
 sequenceDiagram
     participant U as User
@@ -93,8 +102,16 @@ sequenceDiagram
     participant A as AuthGate (:8080)
     participant M as MCP Server (oauth-server[-introspect]/ :8095)
 
+    Note over C,M: RFC 9728 — learn the AS from the resource server
+    C->>M: POST /mcp (no token)
+    M-->>C: 401 WWW-Authenticate: Bearer resource_metadata="…/.well-known/oauth-protected-resource"
+    C->>M: GET /.well-known/oauth-protected-resource
+    M-->>C: { resource, authorization_servers: [http://localhost:8080] }
+
+    Note over C,A: RFC 8414 / OIDC — learn the AS endpoints
     C->>A: GET /.well-known/openid-configuration
-    A-->>C: discovery metadata
+    A-->>C: discovery metadata (authorize, token, jwks_uri)
+
     C->>B: open /oauth/authorize?...&resource=http://localhost:8095/mcp&code_challenge=...
     B->>A: authorize
     A-->>U: login + consent (federated GitHub/Gitea/Microsoft)
@@ -113,6 +130,13 @@ sequenceDiagram
     end
     M-->>C: MCP response (who_am_i / show_auth_token)
 ```
+
+> **On `-auth-server`:** the example client still accepts an `-auth-server`
+> flag, but it is now only a **fallback**. The client always attempts the
+> RFC 9728 probe-and-fetch above first (`discoverAuthServer` in
+> [`oauth-client/client.go`](oauth-client/client.go)); it falls back to
+> `-auth-server` only if the MCP server returns no usable Protected Resource
+> Metadata. In a fully spec-compliant deployment the flag can be dropped.
 
 The server's responsibilities reduce to:
 
@@ -227,20 +251,24 @@ Neither makes outbound calls (see Gap A).
 
 ## Curl walkthrough
 
+The steps below mirror the spec flow: a token-less request gets a `401` that
+points at the Protected Resource Metadata, which in turn names the AS.
+
 ```bash
-# 1. Discover protected-resource metadata
-curl -s http://localhost:8095/.well-known/oauth-protected-resource | jq
-
-# 2. Discover the AS endpoints
-curl -s http://localhost:8080/.well-known/openid-configuration \
-  | jq '{authorization_endpoint, token_endpoint, introspection_endpoint, jwks_uri}'
-
-# 3. Without a token: 401 + RFC 9728 hint
+# 1. Unauthenticated request → 401 carrying the RFC 9728 hint
 curl -i -X POST http://localhost:8095/mcp \
   -H "Content-Type: application/json" \
   -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}'
 #   → HTTP/1.1 401 Unauthorized
-#     WWW-Authenticate: Bearer ..., resource_metadata="..."
+#     WWW-Authenticate: Bearer resource_metadata="http://localhost:8095/.well-known/oauth-protected-resource"
+
+# 2. Follow the hint: fetch protected-resource metadata, read authorization_servers
+curl -s http://localhost:8095/.well-known/oauth-protected-resource \
+  | jq '{resource, authorization_servers}'
+
+# 3. Discover the AS endpoints from the authorization_servers entry
+curl -s http://localhost:8080/.well-known/openid-configuration \
+  | jq '{authorization_endpoint, token_endpoint, introspection_endpoint, jwks_uri}'
 
 # 4. With a JWT bound to the wrong audience: 401 invalid_token, server logs "audience mismatch"
 TOKEN=...  # from a token exchange where you sent resource=http://localhost:9999/mcp
@@ -306,7 +334,7 @@ go test ./03-oauth-mcp/dcr/...
 | Flag             | Default                                    | Meaning                                                                    |
 | ---------------- | ------------------------------------------ | -------------------------------------------------------------------------- |
 | `-mcp-url`       | `http://localhost:8095/mcp`                | MCP streamable HTTP endpoint.                                              |
-| `-auth-server`   | `http://localhost:8080`                    | Issuer URL of the AS.                                                      |
+| `-auth-server`   | `http://localhost:8080`                    | **Fallback** AS issuer URL. The client first discovers the AS via RFC 9728 (401 → protected-resource-metadata) and only uses this if that fails. |
 | `-resource`      | _(= `-mcp-url`)_                           | RFC 8707 resource indicator sent on `/oauth/authorize` and `/oauth/token`. |
 | `-client_id`     | _(required)_                               | OAuth client_id registered with the AS.                                    |
 | `-client_secret` | _(blank)_                                  | Optional; omit for public clients (PKCE is always used).                   |
