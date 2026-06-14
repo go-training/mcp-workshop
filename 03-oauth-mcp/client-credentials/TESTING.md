@@ -40,8 +40,8 @@ You need these in your `PATH`:
 | `uv`   | Python client only — Scenario 6      | `uv --version`   |
 
 **AuthGate** is assumed to already be running at
-`https://authgate.local:8080`, with its self-signed cert trusted by the
-system trust store. The walkthrough does NOT cover installing AuthGate.
+`http://localhost:8080` (plain HTTP, no TLS). The walkthrough does NOT
+cover installing AuthGate.
 
 Two OAuth clients must be registered on that AuthGate instance:
 
@@ -56,7 +56,7 @@ values consistently in every command below.
 **Confirm AuthGate is reachable** before going further:
 
 ```bash
-curl -fsS https://authgate.local:8080/.well-known/oauth-authorization-server | jq '.issuer, .token_endpoint, .introspection_endpoint'
+curl -fsS http://localhost:8080/.well-known/oauth-authorization-server | jq '.issuer, .token_endpoint, .introspection_endpoint'
 ```
 
 Expected: three non-null strings. If this fails, fix AuthGate first; no
@@ -85,7 +85,7 @@ the introspection server validates `aud` end to end.
 ```bash
 ./bin/client-credentials \
   -addr :8096 \
-  -auth-server https://authgate.local:8080 \
+  -auth-server http://localhost:8080 \
   -resource https://mcp.example/mcp \
   -require-resource-binding=true \
   -introspect-client-id mcp-resource \
@@ -105,7 +105,7 @@ msg="client-credentials MCP server starting" addr=:8096 resource=https://mcp.exa
 ./bin/client \
   -mcp-url http://localhost:8096/mcp \
   -resource https://mcp.example/mcp \
-  -auth-server https://authgate.local:8080 \
+  -auth-server http://localhost:8080 \
   -client_id my-service \
   -client_secret s3cr3t \
   -scopes 'mcp:read mcp:write'
@@ -114,9 +114,9 @@ msg="client-credentials MCP server starting" addr=:8096 resource=https://mcp.exa
 **Expected — client output:**
 
 ```
-msg="discovered token endpoint via RFC 8414" auth_server=https://authgate.local:8080 token_endpoint=https://authgate.local:8080/oauth/token
+msg="discovered token endpoint via RFC 8414" auth_server=http://localhost:8080 token_endpoint=http://localhost:8080/oauth/token
 msg="unauthenticated probe returned 401 as expected" www_authenticate="Bearer resource_metadata=..."
-msg=connecting mcp_url=http://localhost:8096/mcp token_url=https://authgate.local:8080/oauth/token resource=https://mcp.example/mcp scopes=[mcp:read mcp:write]
+msg=connecting mcp_url=http://localhost:8096/mcp token_url=http://localhost:8080/oauth/token resource=https://mcp.example/mcp scopes=[mcp:read mcp:write]
 msg=connected server_name=client-credentials-mcp-server
 msg="tool structured content" tool=echo_message json={"client_id":"my-service","message":"hello from go-sdk","scopes":["mcp:read","mcp:write"]}
 msg="tool structured content" tool=add_numbers json={"sum":42}
@@ -151,7 +151,7 @@ request — the SDK makes several during init + tool calls).
 **Terminal B — fetch a token bound to a different resource, then send it:**
 
 ```bash
-TOKEN=$(curl -fsS -X POST https://authgate.local:8080/oauth/token \
+TOKEN=$(curl -fsS -X POST http://localhost:8080/oauth/token \
   -u my-service:s3cr3t \
   -d 'grant_type=client_credentials' \
   -d 'scope=mcp:read mcp:write' \
@@ -213,7 +213,7 @@ proves the defence works.
 **Terminal B — fetch a token without `resource`:**
 
 ```bash
-TOKEN_NO_RES=$(curl -fsS -X POST https://authgate.local:8080/oauth/token \
+TOKEN_NO_RES=$(curl -fsS -X POST http://localhost:8080/oauth/token \
   -u my-service:s3cr3t \
   -d 'grant_type=client_credentials' \
   -d 'scope=mcp:read mcp:write' \
@@ -259,7 +259,7 @@ without the flag and send the same `TOKEN_NO_RES`:
 ```bash
 ./bin/client-credentials \
   -addr :8096 \
-  -auth-server https://authgate.local:8080 \
+  -auth-server http://localhost:8080 \
   -resource https://mcp.example/mcp \
   -introspect-client-id mcp-resource \
   -introspect-client-secret rs-secret
@@ -290,7 +290,7 @@ can coexist with the introspection server if you want both):
 ```bash
 ./bin/server-jwks \
   -addr :8097 \
-  -auth-server https://authgate.local:8080 \
+  -auth-server http://localhost:8080 \
   -resource https://mcp.example/mcp \
   -log-level DEBUG
 ```
@@ -298,7 +298,7 @@ can coexist with the introspection server if you want both):
 Expected startup logs:
 
 ```
-msg="client-credentials JWKS MCP server starting" addr=:8097 resource=https://mcp.example/mcp auth_server=https://authgate.local:8080 issuer=https://authgate.local:8080 ...
+msg="client-credentials JWKS MCP server starting" addr=:8097 resource=https://mcp.example/mcp auth_server=http://localhost:8080 issuer=http://localhost:8080 ...
 ```
 
 If you instead see `OIDC discovery failed`, AuthGate isn't reachable — fix
@@ -310,7 +310,7 @@ that first.
 ./bin/client \
   -mcp-url http://localhost:8097/mcp \
   -resource https://mcp.example/mcp \
-  -auth-server https://authgate.local:8080 \
+  -auth-server http://localhost:8080 \
   -client_id my-service \
   -client_secret s3cr3t \
   -scopes 'mcp:read mcp:write'
@@ -322,7 +322,7 @@ that first.
 **Expected — server log (Terminal A):**
 
 ```
-level=DEBUG msg="jwt verified" iss=https://authgate.local:8080 sub=... aud=[https://mcp.example/mcp] exp=... client_id=my-service scopes=[mcp:read mcp:write]
+level=DEBUG msg="jwt verified" iss=http://localhost:8080 sub=... aud=[https://mcp.example/mcp] exp=... client_id=my-service scopes=[mcp:read mcp:write]
 msg="audience verified" expected_aud=https://mcp.example/mcp got_aud=[https://mcp.example/mcp]
 ```
 
@@ -446,7 +446,7 @@ SDK won't reshape:**
 ```bash
 ./bin/client-credentials \
   -addr :8096 \
-  -auth-server https://authgate.local:8080 \
+  -auth-server http://localhost:8080 \
   -resource http://localhost:8096/mcp \
   -require-resource-binding=true \
   -introspect-client-id mcp-resource \
@@ -510,7 +510,7 @@ can replicate end to end.
 ```bash
 ./bin/client-credentials \
   -addr :8096 \
-  -auth-server https://authgate.local:8080 \
+  -auth-server http://localhost:8080 \
   -resource https://mcp.example/mcp \
   -require-resource-binding=true \
   -introspect-client-id mcp-resource \
@@ -522,12 +522,12 @@ can replicate end to end.
 ### 7.1 RFC 8414 discovery
 
 ```bash
-META=$(curl -fsS https://authgate.local:8080/.well-known/oauth-authorization-server)
+META=$(curl -fsS http://localhost:8080/.well-known/oauth-authorization-server)
 TOKEN_EP=$(echo "$META" | jq -r .token_endpoint)
 echo "token_endpoint = $TOKEN_EP"
 ```
 
-Expected: a URL like `https://authgate.local:8080/oauth/token`.
+Expected: a URL like `http://localhost:8080/oauth/token`.
 
 ### 7.2 RFC 8707 token request
 
