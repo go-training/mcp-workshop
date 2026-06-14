@@ -223,6 +223,10 @@ func discoverAuthServer(ctx context.Context, cfg *config) string {
 			"falling back to -auth-server", "auth_server", cfg.authServer)
 		return cfg.authServer
 	}
+	if len(prm.AuthorizationServers) > 1 {
+		slog.Warn("resource advertises multiple authorization servers — using the first",
+			"authorization_servers", prm.AuthorizationServers)
+	}
 
 	as := prm.AuthorizationServers[0]
 	slog.Info("discovered authorization server via RFC 9728",
@@ -252,6 +256,9 @@ func probeResourceMetadataURL(ctx context.Context, mcpURL string) string {
 		return ""
 	}
 	defer resp.Body.Close()
+	// Drain the body so the transport can reuse this connection for the
+	// metadata fetch that follows. We only need the headers here.
+	_, _ = io.Copy(io.Discard, resp.Body)
 
 	if resp.StatusCode != http.StatusUnauthorized {
 		slog.Warn("unauthenticated probe did not return 401", "status", resp.StatusCode)
@@ -281,7 +288,9 @@ func probeResourceMetadataURL(ctx context.Context, mcpURL string) string {
 func wellKnownPRMURL(mcpURL string) string {
 	u, err := url.Parse(mcpURL)
 	if err != nil {
-		return strings.TrimRight(mcpURL, "/") + "/.well-known/oauth-protected-resource"
+		// An unparseable mcpURL would already have failed the probe request;
+		// return "" so the metadata fetch errors out and we fall back to -auth-server.
+		return ""
 	}
 	return u.Scheme + "://" + u.Host + "/.well-known/oauth-protected-resource"
 }
