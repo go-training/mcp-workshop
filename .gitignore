@@ -23,7 +23,7 @@ go.work.sum
 
 # env file
 .env
-mcp-server
+/mcp-server
 .vscode/mcp.json
 bin/
 

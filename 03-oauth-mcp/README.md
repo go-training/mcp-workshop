@@ -58,6 +58,21 @@ and validates each incoming Bearer token.
 
 See [client-credentials/README.md](client-credentials/README.md) for complete documentation and usage instructions.
 
+### RFC 9207 Issuer Identification (mix-up attack demo)
+
+The `issuer-identification/` directory is a runnable demonstration of the OAuth
+**authorization server mix-up attack** and how **RFC 9207 issuer identification**
+(the `iss` authorization-response parameter) defends against it — in the setting
+MCP creates, where one client trusts multiple authorization servers. It ships a
+malicious AS (`evil-as/`), an honest MCP resource server (`mcp-server/`), and a
+client (`client/`) with a `-defense` flag that toggles the hand-rolled RFC 9207
+check, since go-sdk `v1.6.1` does not validate `iss` for you.
+
+- **[issuer-identification Implementation](issuer-identification/README.md)**:
+  concept, attack/defense sequence diagram, and the SDK gap it teaches
+- **[issuer-identification runbook](issuer-identification/TESTING.md)**:
+  step-by-step reproduction of all three scenarios
+
 ## Quick Start
 
 ```bash
