@@ -85,19 +85,26 @@ not something the SDK grants for free.** The whole check lives in one function:
 ```go
 // client/main.go
 func validateIssuerResponse(iss, expectedIssuer string, issParameterSupported bool) error {
-    if issParameterSupported {
-        if iss == "" {
-            return fmt.Errorf("issuer identification required but ... no iss ...")
-        }
-        if iss != expectedIssuer { // byte-for-byte, RFC 9207 §2.4
-            return fmt.Errorf("issuer mismatch: got %q want %q — aborting", iss, expectedIssuer)
-        }
-        return nil
-    }
-    if iss != "" {
-        return fmt.Errorf("... iss %q but AS does not advertise support — aborting", iss)
-    }
-    return nil
+	if issParameterSupported {
+		if iss == "" {
+			return fmt.Errorf(
+				"issuer identification required but authorization response carried no iss "+
+					"(expected %q)", expectedIssuer)
+		}
+		if iss != expectedIssuer { // byte-for-byte, RFC 9207 §2.4
+			return fmt.Errorf(
+				"issuer mismatch: got %q want %q — aborting", iss, expectedIssuer)
+		}
+		return nil
+	}
+	// The AS does not advertise RFC 9207 support. A conforming AS then must not
+	// send iss; if one appears, the response is not trustworthy.
+	if iss != "" {
+		return fmt.Errorf(
+			"authorization response carried iss %q but the AS does not advertise "+
+				"issuer identification support — aborting", iss)
+	}
+	return nil
 }
 ```
 
