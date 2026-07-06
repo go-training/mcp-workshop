@@ -24,7 +24,7 @@ defense.
 
 | Binary                | Role                                                                        | Default addr |
 | --------------------- | --------------------------------------------------------------------------- | ------------ |
-| `client/main.go`      | MCP OAuth client — hand-rolled Auth Code + PKCE, optional RFC 9207 check    | callback `:8085` |
+| `mcp-client/main.go`  | MCP OAuth client — hand-rolled Auth Code + PKCE, optional RFC 9207 check    | callback `:8085` |
 | `evil-as/main.go`     | Malicious authorization server the client is tricked into trusting          | `:9090`      |
 | `mcp-server/main.go`  | Honest MCP resource server, one Bearer-protected `who_am_i` tool            | `:8095`      |
 
@@ -38,7 +38,7 @@ The **honest** authorization server is an external
 ```mermaid
 sequenceDiagram
     actor User
-    participant C as client/main.go<br/>(MCP OAuth client)
+    participant C as mcp-client/main.go<br/>(MCP OAuth client)
     participant E as evil-as/main.go<br/>(malicious AS)
     participant H as AuthGate<br/>(honest AS, :8080)
     participant M as mcp-server/main.go<br/>(resource server)
@@ -83,7 +83,7 @@ That gap _is_ the lesson: **RFC 9207 support is a client responsibility today,
 not something the SDK grants for free.** The whole check lives in one function:
 
 ```go
-// client/main.go
+// mcp-client/main.go
 func validateIssuerResponse(iss, expectedIssuer string, issParameterSupported bool) error {
 	if issParameterSupported {
 		if iss == "" {
@@ -130,19 +130,19 @@ go run ./03-oauth-mcp/issuer-identification/evil-as \
   -honest-as http://localhost:8080
 
 # terminal 3, scenario 1 — honest happy path (defense on, reaches who_am_i)
-go run ./03-oauth-mcp/issuer-identification/client \
+go run ./03-oauth-mcp/issuer-identification/mcp-client \
   -auth-server http://localhost:8080 \
   -mcp-url     http://localhost:8095/mcp \
   -client_id   <your-registered-client-id> -defense
 
 # terminal 3, scenario 2 — mix-up with defense OFF (evil-as captures the code)
-go run ./03-oauth-mcp/issuer-identification/client \
+go run ./03-oauth-mcp/issuer-identification/mcp-client \
   -auth-server http://localhost:9090 \
   -mcp-url     http://localhost:8095/mcp \
   -client_id   <your-registered-client-id>
 
 # terminal 3, scenario 3 — mix-up with defense ON (client aborts on iss mismatch)
-go run ./03-oauth-mcp/issuer-identification/client \
+go run ./03-oauth-mcp/issuer-identification/mcp-client \
   -auth-server http://localhost:9090 \
   -mcp-url     http://localhost:8095/mcp \
   -client_id   <your-registered-client-id> -defense
@@ -164,7 +164,7 @@ go run ./03-oauth-mcp/issuer-identification/client \
 go test ./03-oauth-mcp/issuer-identification/...
 ```
 
-`client/issuer_test.go` is a table-driven unit test of `validateIssuerResponse`
+`mcp-client/issuer_test.go` is a table-driven unit test of `validateIssuerResponse`
 covering all four RFC 9207 branches (supported+match, supported+missing,
 supported+mismatch, unsupported+present) plus the legacy unsupported+absent case.
 

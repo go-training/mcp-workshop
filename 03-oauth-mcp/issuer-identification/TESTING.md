@@ -77,7 +77,7 @@ Expected issuer = AuthGate. The client discovers AuthGate directly, `iss`
 matches, the code is exchanged at AuthGate, and the client reaches the MCP tool.
 
 ```bash
-go run ./03-oauth-mcp/issuer-identification/client \
+go run ./03-oauth-mcp/issuer-identification/mcp-client \
   -auth-server http://localhost:8080 \
   -mcp-url     http://localhost:8095/mcp \
   -client_id   <your-registered-client-id> \
@@ -101,7 +101,7 @@ callback. With **no** `-defense`, the client posts that honest code to
 `evil-as`'s token endpoint.
 
 ```bash
-go run ./03-oauth-mcp/issuer-identification/client \
+go run ./03-oauth-mcp/issuer-identification/mcp-client \
   -auth-server http://localhost:9090 \
   -mcp-url     http://localhost:8095/mcp \
   -client_id   <your-registered-client-id>
@@ -125,7 +125,7 @@ holds a working access token for the victim.
 Same setup as scenario 2, but add `-defense`.
 
 ```bash
-go run ./03-oauth-mcp/issuer-identification/client \
+go run ./03-oauth-mcp/issuer-identification/mcp-client \
   -auth-server http://localhost:9090 \
   -mcp-url     http://localhost:8095/mcp \
   -client_id   <your-registered-client-id> \
@@ -151,5 +151,5 @@ go test ./03-oauth-mcp/issuer-identification/...
 go vet  ./03-oauth-mcp/issuer-identification/...
 ```
 
-`client/issuer_test.go` validates `validateIssuerResponse` across all RFC 9207
+`mcp-client/issuer_test.go` validates `validateIssuerResponse` across all RFC 9207
 branches without needing any server running.

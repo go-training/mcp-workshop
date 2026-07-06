@@ -15,11 +15,11 @@ type WhoAmIInput struct{}
 // WhoAmIOutput surfaces a subset of the verified token's claims to the MCP
 // caller. All fields come from the JWT — no upstream provider API call is made.
 type WhoAmIOutput struct {
-	Subject  string   `json:"subject"          jsonschema:"the JWT 'sub' (user id at the issuer)"`
-	ClientID string   `json:"client_id"        jsonschema:"the OAuth client that obtained the token"`
-	Issuer   string   `json:"issuer"           jsonschema:"the JWT 'iss' (authorization server URL)"`
-	Audience []string `json:"audience"         jsonschema:"the JWT 'aud' (resource indicator(s))"`
-	Scopes   []string `json:"scopes"           jsonschema:"OAuth scopes granted to this token"`
+	Subject  string   `json:"subject"   jsonschema:"the JWT 'sub' (user id at the issuer)"`
+	ClientID string   `json:"client_id" jsonschema:"the OAuth client that obtained the token"`
+	Issuer   string   `json:"issuer"    jsonschema:"the JWT 'iss' (authorization server URL)"`
+	Audience []string `json:"audience"  jsonschema:"the JWT 'aud' (resource indicator(s))"`
+	Scopes   []string `json:"scopes"    jsonschema:"OAuth scopes granted to this token"`
 }
 
 func whoAmIHandler(

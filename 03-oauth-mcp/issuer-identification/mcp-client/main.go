@@ -318,7 +318,13 @@ func runAuthCodeFlow(
 		}
 	}()
 
-	authURL := buildAuthorizeURL(meta.AuthorizationEndpoint, cfg, redirectURI, state, pkce.Challenge)
+	authURL := buildAuthorizeURL(
+		meta.AuthorizationEndpoint,
+		cfg,
+		redirectURI,
+		state,
+		pkce.Challenge,
+	)
 	slog.Info("opening browser for authorization", "url", authURL)
 	if err := openBrowser(authURL); err != nil {
 		slog.Warn("could not open browser automatically — open this URL manually",
@@ -359,7 +365,11 @@ func runAuthCodeFlow(
 	return exchangeCode(ctx, cfg, meta.TokenEndpoint, res.code, redirectURI, pkce.Verifier)
 }
 
-func buildAuthorizeURL(endpoint string, cfg *config, redirectURI, state, codeChallenge string) string {
+func buildAuthorizeURL(
+	endpoint string,
+	cfg *config,
+	redirectURI, state, codeChallenge string,
+) string {
 	q := url.Values{
 		"response_type":         {"code"},
 		"client_id":             {cfg.clientID},
