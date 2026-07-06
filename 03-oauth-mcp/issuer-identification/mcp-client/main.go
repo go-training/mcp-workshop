@@ -194,7 +194,13 @@ func run() error {
 		slog.Info("connect disabled — stopping after token exchange")
 		return nil
 	}
-	if err := callMCP(ctx, cfg, token); err != nil {
+	// Use a fresh deadline for the MCP call: the parent ctx's 5-minute budget
+	// has been ticking during the interactive browser login, so reusing it here
+	// could spuriously fail the tool call with "context deadline exceeded" even
+	// though we already hold a valid token.
+	mcpCtx, mcpCancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer mcpCancel()
+	if err := callMCP(mcpCtx, cfg, token); err != nil {
 		return fmt.Errorf("call MCP: %w", err)
 	}
 	slog.Info("client run complete")
@@ -500,6 +506,11 @@ func callMCP(ctx context.Context, cfg *config, token *tokenResponse) error {
 		return fmt.Errorf("call who_am_i: %w", err)
 	}
 	printToolResult("who_am_i", res)
+	// A transport-level success can still carry a tool-level error result; surface
+	// it so the process exits non-zero instead of reporting a clean run.
+	if res.IsError {
+		return errors.New("who_am_i returned an error result")
+	}
 	return nil
 }
 

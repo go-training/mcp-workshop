@@ -118,6 +118,14 @@ A browser opens; authenticate and consent. **Expected `evil-as` logs
 The client log also warns `RFC 9207 iss validation is OFF …`. The attacker now
 holds a working access token for the victim.
 
+**Watch terminal 3 too — this is the insidious part.** Because `evil-as` redeems
+the code and returns the honest token verbatim (and `-connect` defaults on), the
+client's own terminal shows an apparently *successful* run: it obtains a token,
+connects, and prints a normal `who_am_i` result. Nothing in the victim's terminal
+signals the theft — the only evidence is the `CAPTURED` / `STOLEN` lines in
+terminal 2. That silent success is exactly why the mix-up is dangerous and why
+RFC 9207 (scenario 3) matters.
+
 ---
 
 ## Scenario 3 — Mix-up attack, defense ON (client aborts)
