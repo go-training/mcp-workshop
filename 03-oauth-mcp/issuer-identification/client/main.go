@@ -25,6 +25,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"html"
 	"io"
 	"log/slog"
 	"net"
@@ -528,5 +529,6 @@ func openBrowser(rawURL string) error {
 
 func writeCallbackHTML(w http.ResponseWriter, msg string) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	fmt.Fprintf(w, "<html><body><h1>%s</h1><script>window.close();</script></body></html>", msg)
+	fmt.Fprintf(w, "<html><body><h1>%s</h1><script>window.close();</script></body></html>",
+		html.EscapeString(msg))
 }

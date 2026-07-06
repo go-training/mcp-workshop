@@ -48,7 +48,7 @@ sequenceDiagram
     C->>E: GET /authorize (discovered from evil-as metadata)
     E-->>User: 302 to H /authorize (impersonation, honest client_id)
     User->>H: authenticate + consent
-    H-->>C: 302 callback?code=VALID&state&iss=AuthGate
+    H-->>C: 302 callback?code=VALID&state=…&iss=AuthGate
 
     alt -defense OFF (vulnerable)
         C->>E: POST /token (code) at evil token_endpoint
