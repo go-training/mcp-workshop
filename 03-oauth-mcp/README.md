@@ -65,7 +65,7 @@ The `issuer-identification/` directory is a runnable demonstration of the OAuth
 (the `iss` authorization-response parameter) defends against it — in the setting
 MCP creates, where one client trusts multiple authorization servers. It ships a
 malicious AS (`evil-as/`), an honest MCP resource server (`mcp-server/`), and a
-client (`client/`) with a `-defense` flag that toggles the hand-rolled RFC 9207
+client (`mcp-client/`) with a `-defense` flag that toggles the hand-rolled RFC 9207
 check, since go-sdk `v1.6.1` does not validate `iss` for you.
 
 - **[issuer-identification Implementation](issuer-identification/README.md)**:

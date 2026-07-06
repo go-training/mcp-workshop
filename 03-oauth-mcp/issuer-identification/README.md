@@ -48,14 +48,14 @@ sequenceDiagram
     C->>E: GET /authorize (discovered from evil-as metadata)
     E-->>User: 302 to H /authorize (impersonation, honest client_id)
     User->>H: authenticate + consent
-    H-->>C: 302 callback?code=VALID&state=…&iss=AuthGate
+    H-->>C: 302 callback?code=VALID&state=…&iss=http://localhost:8080 (AuthGate)
 
     alt -defense OFF (vulnerable)
         C->>E: POST /token (code) at evil token_endpoint
         E-->>C: evil has CAPTURED the honest code (and redeems it)
         Note over E: prints the stolen access token
     else -defense ON (RFC 9207)
-        Note over C: iss=AuthGate != expected evil-as -> ABORT
+        Note over C: iss=http://localhost:8080 != expected http://localhost:9090 -> ABORT
         C--xE: code never sent to attacker
     end
 
