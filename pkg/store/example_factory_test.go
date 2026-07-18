@@ -202,18 +202,19 @@ func Example_switchingStores() {
 	fmt.Println("Memory store: OK")
 
 	// The same function works against Redis. Exercise it when a server happens
-	// to be reachable, but keep the printed output identical either way so the
-	// example does not depend on whether the developer has Redis running.
+	// to be reachable, but never let the local environment change the printed
+	// output or kill the test binary: a reachable-but-unusable Redis (auth
+	// required, ACLs, read-only replica) must not fail this example.
 	redisStore, err := store.NewStore(store.RedisConfig(store.RedisOptions{
 		Addr: "localhost:6379",
 	}))
 	if err == nil {
-		func() {
-			defer redisStore.(*store.RedisStore).Close()
-			if err := useStore(redisStore); err != nil {
-				log.Fatal(err)
+		defer func() {
+			if rs, ok := redisStore.(*store.RedisStore); ok {
+				rs.Close()
 			}
 		}()
+		_ = useStore(redisStore)
 	}
 
 	// Output: Memory store: OK
