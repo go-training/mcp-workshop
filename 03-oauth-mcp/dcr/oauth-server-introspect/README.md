@@ -8,19 +8,19 @@ Use this variant when revocations must propagate immediately. For most
 deployments, the [JWKS variant](../oauth-server/) is the better default
 (zero network calls per request, no shared secret).
 
-For the dcr/ split overview, AuthGate prerequisites, Gap A / Gap B caveats,
+For the dcr/ split overview, Signet prerequisites, Gap A / Gap B caveats,
 and the curl walkthrough, see the parent [`../README.md`](../README.md).
 
 ## Why we don't use `middleware.BearerAuth` directly
 
 The natural choice would be
-[`go-authgate/sdk-go/middleware.BearerAuth`](https://pkg.go.dev/github.com/go-authgate/sdk-go/middleware) —
+[`go-signet/sdk-go/middleware.BearerAuth`](https://pkg.go.dev/github.com/go-signet/sdk-go/middleware) —
 the SDK package designed for exactly this case. We do not use it because
 the SDK's `IntrospectionResult` struct does not surface the `aud` claim, so
 a `BearerAuth` pipeline cannot enforce the RFC 8707 resource binding this
 example requires. We therefore decode the introspection response into our
 own struct that includes `aud`, while still using the SDK's
-[`discovery`](https://pkg.go.dev/github.com/go-authgate/sdk-go/discovery)
+[`discovery`](https://pkg.go.dev/github.com/go-signet/sdk-go/discovery)
 package to resolve the introspection endpoint at startup. When/if the
 upstream SDK adds `aud` to `IntrospectionResult`, this file can switch to
 `middleware.BearerAuth` with a small adapter to the MCP SDK's
@@ -49,7 +49,7 @@ go build -o ./bin/oauth-server-introspect ./03-oauth-mcp/dcr/oauth-server-intros
 
 `-introspect-client-id` / `-introspect-client-secret` are credentials this
 RS uses to call `POST /oauth/introspect` with HTTP Basic auth, per RFC 7662
-§2.2. Register a confidential client in AuthGate for this purpose.
+§2.2. Register a confidential client in Signet for this purpose.
 
 ## What the verifier enforces
 

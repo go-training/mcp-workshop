@@ -12,10 +12,10 @@ flow, built with the official
 [Model Context Protocol Go SDK](https://github.com/modelcontextprotocol/go-sdk).
 
 The server issues no tokens — it delegates all OAuth work to an external
-authorization server (e.g. [AuthGate](https://github.com/go-authgate/authgate))
+authorization server (e.g. [Signet](https://github.com/go-signet/signet))
 and validates each incoming Bearer. Federated identity providers
-(GitHub, Gitea, Microsoft Entra ID, …) are configured on AuthGate, not here.
-Dynamic Client Registration is also AuthGate's `/oauth/register`; the
+(GitHub, Gitea, Microsoft Entra ID, …) are configured on Signet, not here.
+Dynamic Client Registration is also Signet's `/oauth/register`; the
 `dcr/` MCP server does not host its own DCR endpoint.
 
 - **[dcr Implementation](dcr/README.md)**: full documentation for the
@@ -30,11 +30,11 @@ Dynamic Client Registration is also AuthGate's `/oauth/register`; the
   - Example client in [Go](dcr/oauth-client/) that performs auth-code+PKCE
     end-to-end with persistent token storage
   - Provider choice (GitHub / Gitea / Microsoft) is configured server-side
-    on AuthGate; the MCP server is provider-agnostic
+    on Signet; the MCP server is provider-agnostic
 
 See [dcr/README.md](dcr/README.md) for complete documentation, including
 Gap A (upstream provider tokens are not passed through to MCP tools) and
-Gap B (GitLab is not currently a federated provider on AuthGate).
+Gap B (GitLab is not currently a federated provider on Signet).
 
 ### Client Credentials (machine-to-machine)
 
@@ -44,7 +44,7 @@ that implements the
 built with the official [Model Context Protocol Go SDK](https://github.com/modelcontextprotocol/go-sdk) v1.5.0.
 
 The server issues no tokens — it delegates all OAuth work to an external
-authorization server such as [AuthGate](https://github.com/go-authgate/authgate)
+authorization server such as [Signet](https://github.com/go-signet/signet)
 and validates each incoming Bearer token.
 
 - **[Client Credentials Implementation](client-credentials/README.md)**: Full documentation for the resource-server flow
@@ -76,7 +76,7 @@ check, since go-sdk `v1.6.1` does not validate `iss` for you.
 ## Quick Start
 
 ```bash
-# Authorization Code + PKCE (interactive, dcr/) — validates tokens issued by an external AS (e.g. AuthGate)
+# Authorization Code + PKCE (interactive, dcr/) — validates tokens issued by an external AS (e.g. Signet)
 # JWKS variant (listens on :8095, local signature verification)
 go run ./dcr/oauth-server \
   -auth-server http://localhost:8080 \
@@ -95,10 +95,10 @@ go run ./dcr/oauth-client \
   -mcp-url     http://localhost:8095/mcp \
   -client_id   <your-registered-client-id>
 
-# Client Credentials (machine-to-machine) — validates tokens issued by an external AS (e.g. AuthGate)
+# Client Credentials (machine-to-machine) — validates tokens issued by an external AS (e.g. Signet)
 # Introspection variant (listens on :8096)
 go run ./client-credentials \
-  -auth-server https://authgate.local:8080 \
+  -auth-server https://signet.local:8080 \
   -resource https://mcp.example/mcp \
   -require-resource-binding=true \
   -introspect-client-id mcp-resource \
@@ -106,13 +106,13 @@ go run ./client-credentials \
 
 # JWKS variant (listens on :8097, local signature verification, OIDC discovery at startup)
 go run ./client-credentials/server-jwks \
-  -auth-server https://authgate.local:8080 \
+  -auth-server https://signet.local:8080 \
   -resource https://mcp.example/mcp
 
 # Go verification client (targets :8096; swap port to :8097 to hit the JWKS variant)
 go run ./client-credentials/client \
   -mcp-url http://localhost:8096/mcp \
   -resource https://mcp.example/mcp \
-  -auth-server https://authgate.local:8080 \
+  -auth-server https://signet.local:8080 \
   -client_id my-service -client_secret s3cr3t
 ```

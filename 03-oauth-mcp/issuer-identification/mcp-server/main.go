@@ -3,7 +3,7 @@
 // Package main is the honest MCP resource server for the RFC 9207 mix-up
 // sample. It is a trimmed copy of dcr/oauth-server: it issues no tokens, it
 // validates incoming Bearer tokens locally via JWKS against the honest
-// authorization server (AuthGate), and it exposes one Bearer-protected tool,
+// authorization server (Signet), and it exposes one Bearer-protected tool,
 // who_am_i, plus RFC 9728 Protected Resource Metadata that points clients at
 // that AS.
 //
@@ -29,13 +29,13 @@ import (
 
 	"github.com/go-training/mcp-workshop/pkg/logger"
 
-	"github.com/go-authgate/sdk-go/jwksauth"
+	"github.com/go-signet/sdk-go/jwksauth"
 	"github.com/modelcontextprotocol/go-sdk/auth"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/modelcontextprotocol/go-sdk/oauthex"
 )
 
-// accessTokenType is the value the JWT `type` claim must carry for AuthGate
+// accessTokenType is the value the JWT `type` claim must carry for Signet
 // access tokens; a refresh JWT presented as Bearer would otherwise pass the
 // signature, iss, aud, and exp checks unchanged.
 const accessTokenType = "access"
@@ -139,9 +139,9 @@ func main() {
 		"public URL of this MCP resource (defaults to http://localhost<addr>/mcp); "+
 			"also the audience this verifier requires in the JWT's aud claim")
 	flag.StringVar(&authServerURL, "auth-server", "http://localhost:8080",
-		"issuer URL of the honest OAuth 2.0 authorization server (AuthGate)")
+		"issuer URL of the honest OAuth 2.0 authorization server (Signet)")
 	flag.StringVar(&claimPrefix, "private-claim-prefix", "extra",
-		"AuthGate JWT_PRIVATE_CLAIM_PREFIX — must match the issuer's setting")
+		"Signet JWT_PRIVATE_CLAIM_PREFIX — must match the issuer's setting")
 	flag.DurationVar(&discoveryTO, "discovery-timeout", 15*time.Second,
 		"timeout for the OIDC discovery call at startup")
 	flag.DurationVar(&verifyTO, "verify-timeout", 5*time.Second,

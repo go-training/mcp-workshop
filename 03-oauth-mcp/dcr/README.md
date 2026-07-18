@@ -1,7 +1,7 @@
 # OAuth 2.1 Authorization Code + PKCE MCP Resource Server
 
 This example demonstrates the **Authorization Code + PKCE** flow split: an
-[AuthGate](https://github.com/go-authgate/authgate) instance issues OAuth
+[Signet](https://github.com/go-signet/signet) instance issues OAuth
 tokens, and this MCP server validates them. The MCP server itself issues no
 tokens.
 
@@ -25,15 +25,15 @@ If you have used this directory before, the rewrite is a hard
 backward-incompatible cut, by design:
 
 - The MCP server no longer hosts `/authorize`, `/token`, `/register`, or
-  `/.well-known/oauth-authorization-server`. Those endpoints live on AuthGate.
+  `/.well-known/oauth-authorization-server`. Those endpoints live on Signet.
 - The MCP server publishes only RFC 9728 Protected Resource Metadata at
-  `/.well-known/oauth-protected-resource`, pointing clients at AuthGate.
+  `/.well-known/oauth-protected-resource`, pointing clients at Signet.
 - The `make_authenticated_request` tool — which previously called GitHub
   on behalf of the user using their upstream GitHub access token — is
   removed (see **Gap A** below) and replaced with `who_am_i`, which
   surfaces the verified JWT's claims.
 - The `-provider=gitlab` flag is removed; GitLab is not currently a
-  federated identity provider in AuthGate (see **Gap B** below).
+  federated identity provider in Signet (see **Gap B** below).
 - The `mark3labs/mcp-go` dependency is no longer imported by anything in
   this directory. The server is built on
   [`github.com/modelcontextprotocol/go-sdk`](https://github.com/modelcontextprotocol/go-sdk).
@@ -52,33 +52,33 @@ path; it predates these changes.
 
 The previous `make_authenticated_request` tool worked because the old
 `oauth-server/` stored the **user's GitHub access token** from the federated
-login and exposed it via the request context. AuthGate's contract is
+login and exposed it via the request context. Signet's contract is
 different: it federates GitHub / Gitea / Microsoft Entra ID for **login**
 but issues its **own JWT** to relying parties. The MCP server never sees
 a GitHub PAT.
 
-AuthGate v0.11 does not expose upstream provider tokens to relying parties
+Signet v0.11 does not expose upstream provider tokens to relying parties
 at runtime (the admin UI exposes connections at `/admin/users/:id/connections`,
 but that is an admin-only operation, not a callable API). This example
 therefore replaces `make_authenticated_request` with `who_am_i`, which
-returns claims from the verified JWT — including AuthGate's server-attested
+returns claims from the verified JWT — including Signet's server-attested
 extras (`extra_uid`, `extra_domain`, …). If your MCP tool needs to call a
-downstream API on behalf of the user, the AuthGate-blessed pattern is to
-use a Client Credentials grant from the MCP server back to AuthGate for an
+downstream API on behalf of the user, the Signet-blessed pattern is to
+use a Client Credentials grant from the MCP server back to Signet for an
 audience that the downstream API trusts.
 
-A future AuthGate enhancement that exposes upstream tokens via a new
+A future Signet enhancement that exposes upstream tokens via a new
 `/oauth/userinfo/connections` endpoint would close this gap; out of scope
 for this example.
 
-### Gap B — No GitLab identity provider on AuthGate
+### Gap B — No GitLab identity provider on Signet
 
-AuthGate ships GitHub, Gitea, and Microsoft Entra ID as upstream OAuth
+Signet ships GitHub, Gitea, and Microsoft Entra ID as upstream OAuth
 providers today. GitLab is not yet supported. Anyone who reached the old
-`dcr/` looking for a `-provider=gitlab` flag should know that AuthGate is
+`dcr/` looking for a `-provider=gitlab` flag should know that Signet is
 the place to add a GitLab provider, not this example. The provider choice
-is configured server-side on AuthGate (see
-[AuthGate's `docs/OAUTH_SETUP.md`](https://github.com/go-authgate/authgate/blob/main/docs/OAUTH_SETUP.md));
+is configured server-side on Signet (see
+[Signet's `docs/OAUTH_SETUP.md`](https://github.com/go-signet/signet/blob/main/docs/OAUTH_SETUP.md));
 this `dcr/` example is provider-agnostic.
 
 ---
@@ -99,7 +99,7 @@ sequenceDiagram
     participant U as User
     participant C as MCP Client (oauth-client/)
     participant B as Browser
-    participant A as AuthGate (:8080)
+    participant A as Signet (:8080)
     participant M as MCP Server (oauth-server[-introspect]/ :8095)
 
     Note over C,M: RFC 9728 — learn the AS from the resource server
@@ -141,7 +141,7 @@ sequenceDiagram
 The server's responsibilities reduce to:
 
 1. **RFC 9728 metadata** at `/.well-known/oauth-protected-resource`,
-   pointing clients at AuthGate.
+   pointing clients at Signet.
 2. **Bearer-token verification** via
    `auth.RequireBearerToken` from
    [`github.com/modelcontextprotocol/go-sdk/auth`](https://pkg.go.dev/github.com/modelcontextprotocol/go-sdk/auth),
@@ -164,16 +164,16 @@ The server's responsibilities reduce to:
 | Sensible default                      | **This one**                                                    | When immediate revocation matters more than per-request latency        |
 
 Both variants enforce that the JWT was minted for **this** resource by
-requiring `aud == -resource`. Without that check, any AuthGate-issued
+requiring `aud == -resource`. Without that check, any Signet-issued
 token would be accepted by any MCP server sharing the same issuer.
 
 ---
 
 ## Prerequisites
 
-This example assumes an AuthGate instance reachable at `http://localhost:8080`
-(or `https://authgate.local:8080` if you mirror the deployment used in
-`../client-credentials/`). At minimum the AuthGate `.env` should set:
+This example assumes an Signet instance reachable at `http://localhost:8080`
+(or `https://signet.local:8080` if you mirror the deployment used in
+`../client-credentials/`). At minimum the Signet `.env` should set:
 
 ```ini
 ENABLE_DYNAMIC_CLIENT_REGISTRATION=true   # only if you want the oauth-client to self-register
@@ -189,7 +189,7 @@ docker run --rm -p 8080:8080 \
   -e OAUTH_GITHUB_CLIENT_ID=... \
   -e OAUTH_GITHUB_CLIENT_SECRET=... \
   -e ENABLE_DYNAMIC_CLIENT_REGISTRATION=true \
-  ghcr.io/go-authgate/authgate:latest
+  ghcr.io/go-signet/signet:latest
 ```
 
 Register a client for this example (or rely on DCR via `POST /oauth/register`
@@ -201,7 +201,7 @@ includes `http://127.0.0.1:8085/callback`.
 ## Quickstart — JWKS variant
 
 ```bash
-# Terminal 1: AuthGate (see above)
+# Terminal 1: Signet (see above)
 
 # Terminal 2: MCP resource server (JWKS, local verification)
 go run ./03-oauth-mcp/dcr/oauth-server \
@@ -217,7 +217,7 @@ go run ./03-oauth-mcp/dcr/oauth-client \
   -scopes "openid profile email"
 ```
 
-The client opens a browser to AuthGate, you log in via the federated
+The client opens a browser to Signet, you log in via the federated
 provider, the browser redirects to `127.0.0.1:8085/callback`, the client
 exchanges the code for a token with `resource=http://localhost:8095/mcp`,
 and then calls `who_am_i` / `show_auth_token` on the MCP server.
@@ -241,7 +241,7 @@ The client command from above works unchanged; only the server differs.
 
 | Tool              | Behaviour                                                                                                                |
 | ----------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| `who_am_i`        | Returns subject, client id, issuer, audience(s), scopes, and AuthGate-attested extras (`uid`, `domain`, …) from the JWT. |
+| `who_am_i`        | Returns subject, client id, issuer, audience(s), scopes, and Signet-attested extras (`uid`, `domain`, …) from the JWT. |
 | `show_auth_token` | Returns a masked hint about the bearer (subject + client id) — never the raw token.                                      |
 
 Both tools read the verified `auth.TokenInfo` from `req.Extra.TokenInfo`.
@@ -312,7 +312,7 @@ go test ./03-oauth-mcp/dcr/...
 
 | Flag                    | Default | Meaning                                                                 |
 | ----------------------- | ------- | ----------------------------------------------------------------------- |
-| `-private-claim-prefix` | `extra` | Must match AuthGate's `JWT_PRIVATE_CLAIM_PREFIX`.                       |
+| `-private-claim-prefix` | `extra` | Must match Signet's `JWT_PRIVATE_CLAIM_PREFIX`.                       |
 | `-discovery-timeout`    | `15s`   | Bounds the OIDC discovery call at startup.                              |
 | `-verify-timeout`       | `5s`    | Per-request JWT verification timeout (bounds JWKS fetch on cache miss). |
 
@@ -349,12 +349,12 @@ go test ./03-oauth-mcp/dcr/...
 
 - [`../client-credentials/`](../client-credentials/) — the machine-to-machine
   variant of this same split.
-- [AuthGate docs](https://github.com/go-authgate/authgate/tree/main/docs) —
+- [Signet docs](https://github.com/go-signet/signet/tree/main/docs) —
   `MCP.md`, `OAUTH_SETUP.md`.
 - [RFC 8707](https://datatracker.ietf.org/doc/html/rfc8707) — resource
   indicators.
 - [RFC 9728](https://datatracker.ietf.org/doc/html/rfc9728) — protected
   resource metadata.
 - [Model Context Protocol Go SDK](https://github.com/modelcontextprotocol/go-sdk).
-- [`go-authgate/sdk-go`](https://github.com/go-authgate/sdk-go) — `jwksauth`,
+- [`go-signet/sdk-go`](https://github.com/go-signet/sdk-go) — `jwksauth`,
   `middleware`, `discovery`, `credstore`, `authflow`.

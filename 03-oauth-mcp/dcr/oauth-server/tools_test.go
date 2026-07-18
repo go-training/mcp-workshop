@@ -15,7 +15,7 @@ func TestWhoAmIHandler(t *testing.T) {
 		Scopes: []string{"mcp:read", "openid"},
 		Extra: map[string]any{
 			"client_id":     "client-abc",
-			"iss":           "https://authgate.example/",
+			"iss":           "https://signet.example/",
 			"aud":           []string{"http://localhost:8095/mcp"},
 			"uid":           "alice",
 			"domain":        "engineering",
@@ -34,7 +34,7 @@ func TestWhoAmIHandler(t *testing.T) {
 	if out.ClientID != "client-abc" {
 		t.Errorf("ClientID = %q, want client-abc", out.ClientID)
 	}
-	if out.Issuer != "https://authgate.example/" {
+	if out.Issuer != "https://signet.example/" {
 		t.Errorf("Issuer = %q", out.Issuer)
 	}
 	if len(out.Audience) != 1 || out.Audience[0] != "http://localhost:8095/mcp" {

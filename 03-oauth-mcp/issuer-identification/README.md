@@ -29,7 +29,7 @@ defense.
 | `mcp-server/main.go`  | Honest MCP resource server, one Bearer-protected `who_am_i` tool            | `:8095`      |
 
 The **honest** authorization server is an external
-[AuthGate](https://github.com/go-authgate/authgate) instance (default
+[Signet](https://github.com/go-signet/signet) instance (default
 `http://localhost:8080`), exactly as the sibling `dcr/` and
 `client-credentials/` examples already assume.
 
@@ -40,7 +40,7 @@ sequenceDiagram
     actor User
     participant C as mcp-client/main.go<br/>(MCP OAuth client)
     participant E as evil-as/main.go<br/>(malicious AS)
-    participant H as AuthGate<br/>(honest AS, :8080)
+    participant H as Signet<br/>(honest AS, :8080)
     participant M as mcp-server/main.go<br/>(resource server)
 
     Note over C: expected issuer = evil-as (user picked the evil MCP server)
@@ -48,7 +48,7 @@ sequenceDiagram
     C->>E: GET /authorize (discovered from evil-as metadata)
     E-->>User: 302 to H /authorize (impersonation, honest client_id)
     User->>H: authenticate + consent
-    H-->>C: 302 callback?code=VALID&state=…&iss=http://localhost:8080 (AuthGate)
+    H-->>C: 302 callback?code=VALID&state=…&iss=http://localhost:8080 (Signet)
 
     alt -defense OFF (vulnerable)
         C->>E: POST /token (code) at evil token_endpoint
@@ -59,7 +59,7 @@ sequenceDiagram
         C--xE: code never sent to attacker
     end
 
-    Note over C,M: legitimate happy path (expected issuer = AuthGate) succeeds:
+    Note over C,M: legitimate happy path (expected issuer = Signet) succeeds:
     C->>M: connect + call who_am_i with validated Bearer
     M-->>C: identity claims
 ```
@@ -113,7 +113,7 @@ to any token endpoint.
 
 ## Quick start
 
-You need a running AuthGate (honest AS) at `http://localhost:8080` and a client
+You need a running Signet (honest AS) at `http://localhost:8080` and a client
 registered there whose redirect URI is `http://127.0.0.1:8085/callback`. See
 [TESTING.md](TESTING.md) for the full step-by-step runbook of all three
 scenarios; the short version:

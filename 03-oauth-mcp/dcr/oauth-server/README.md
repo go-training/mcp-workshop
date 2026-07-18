@@ -2,11 +2,11 @@
 
 MCP resource server for the Authorization Code + PKCE flow. Validates Bearer
 tokens **locally via JWKS** using
-[`github.com/go-authgate/sdk-go/jwksauth`](https://pkg.go.dev/github.com/go-authgate/sdk-go/jwksauth)
+[`github.com/go-signet/sdk-go/jwksauth`](https://pkg.go.dev/github.com/go-signet/sdk-go/jwksauth)
 and never calls the AS on the hot path after the one-time discovery at
 startup.
 
-For an overview of the dcr/ split (JWKS vs introspection), the AuthGate
+For an overview of the dcr/ split (JWKS vs introspection), the Signet
 prerequisites, the Gap A / Gap B caveats, and the curl walkthrough, see the
 parent [`../README.md`](../README.md). This file is a short reference for
 the JWKS server alone.
@@ -44,7 +44,7 @@ For every request to `/mcp` with `Authorization: Bearer <jwt>`:
 2. **`iss`** equals the canonical issuer reported by OIDC discovery.
 3. **`exp`** is in the future and **`nbf`** is in the past.
 4. **`aud`** contains `-resource` (RFC 8707 binding).
-5. **`type`** claim equals `"access"`. AuthGate signs refresh tokens with
+5. **`type`** claim equals `"access"`. Signet signs refresh tokens with
    the same key, so without this check a refresh JWT presented as a
    Bearer would pass every other test. The SDK does not surface `type`
    on its parsed claims, so this server re-decodes the raw JWT payload to
@@ -58,7 +58,7 @@ reason (`audience mismatch`, `non-access token rejected`, …).
 
 | Tool              | What it returns                                                                                                   |
 | ----------------- | ----------------------------------------------------------------------------------------------------------------- |
-| `who_am_i`        | `subject` (JWT `sub`), `client_id`, `issuer`, `audience` (`aud`), `scopes`, plus AuthGate extras `uid`, `domain`. |
+| `who_am_i`        | `subject` (JWT `sub`), `client_id`, `issuer`, `audience` (`aud`), `scopes`, plus Signet extras `uid`, `domain`. |
 | `show_auth_token` | `subject`, `client_id`, and a `masked_token` hint derived from those. Never returns the raw bearer.               |
 
 See [`../README.md`](../README.md#mcp-tools) for the rationale.

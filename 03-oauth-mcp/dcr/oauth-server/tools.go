@@ -20,8 +20,8 @@ type WhoAmIOutput struct {
 	Issuer   string   `json:"issuer"           jsonschema:"the JWT 'iss' (authorization server URL)"`
 	Audience []string `json:"audience"         jsonschema:"the JWT 'aud' (resource indicator(s))"`
 	Scopes   []string `json:"scopes"           jsonschema:"OAuth scopes granted to this token"`
-	UID      string   `json:"uid,omitempty"    jsonschema:"AuthGate-attested upstream username (extra_uid claim) when present"`
-	Domain   string   `json:"domain,omitempty" jsonschema:"AuthGate-attested tenant/domain (extra_domain claim) when present"`
+	UID      string   `json:"uid,omitempty"    jsonschema:"Signet-attested upstream username (extra_uid claim) when present"`
+	Domain   string   `json:"domain,omitempty" jsonschema:"Signet-attested tenant/domain (extra_domain claim) when present"`
 }
 
 func whoAmIHandler(
@@ -101,7 +101,7 @@ func newMCPServer() *mcp.Server {
 	mcp.AddTool(server, &mcp.Tool{
 		Name: "who_am_i",
 		Description: "Returns identity claims from the verified JWT: subject, client id, " +
-			"audience, issuer, scopes, and AuthGate-attested extras (uid, domain).",
+			"audience, issuer, scopes, and Signet-attested extras (uid, domain).",
 	}, whoAmIHandler)
 
 	mcp.AddTool(server, &mcp.Tool{

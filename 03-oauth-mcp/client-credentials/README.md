@@ -9,7 +9,7 @@ for machine-to-machine authentication, built with the official
 The MCP server is only a **resource server**. It does **not** issue tokens or
 host an OAuth authorization server. Clients obtain access tokens from a
 separate authorization server such as
-[AuthGate](https://github.com/go-authgate/authgate), then present them in the
+[Signet](https://github.com/go-signet/signet), then present them in the
 `Authorization: Bearer ...` header. On each request this server validates the
 token by calling the authorization server's
 [RFC 7662 token introspection](https://datatracker.ietf.org/doc/html/rfc7662)
@@ -20,7 +20,7 @@ endpoint.
 ```mermaid
 sequenceDiagram
     participant C as Client (machine-to-machine)
-    participant AS as Authorization Server (e.g. AuthGate)
+    participant AS as Authorization Server (e.g. Signet)
     participant RS as MCP Resource Server (this binary)
 
     C->>AS: GET /.well-known/oauth-authorization-server<br/>(RFC 8414 discovery)
@@ -41,7 +41,7 @@ sequenceDiagram
 | Variant                              | Verifier                                | Per-request cost            | Revocation visibility | Dependencies                                                         |
 | ------------------------------------ | --------------------------------------- | --------------------------- | --------------------- | -------------------------------------------------------------------- |
 | [`server.go`](server.go)             | RFC 7662 introspection (HTTP roundtrip) | 1 HTTPS call to issuer      | Instant               | None beyond the MCP SDK                                              |
-| [`server-jwks/`](server-jwks/) (new) | JWKS signature verification, local      | Microseconds (after warmup) | Bounded by token TTL  | `github.com/go-authgate/sdk-go/jwksauth` (OIDC discovery at startup) |
+| [`server-jwks/`](server-jwks/) (new) | JWKS signature verification, local      | Microseconds (after warmup) | Bounded by token TTL  | `github.com/go-signet/sdk-go/jwksauth` (OIDC discovery at startup) |
 
 Pick **introspection** when access-token lifetimes are long, you need instant
 revocation, or you do not want extra dependencies. Pick **JWKS** when tokens
@@ -50,7 +50,7 @@ TTL, and you want to scale horizontally without per-request issuer traffic.
 
 Concerns are cleanly separated:
 
-- **Authorization server (AuthGate)** — owns credentials, issues and revokes
+- **Authorization server (Signet)** — owns credentials, issues and revokes
   tokens, hosts `/oauth/token`, `/oauth/introspect`,
   `/.well-known/oauth-authorization-server` (RFC 8414),
   `/.well-known/openid-configuration`, `/.well-known/jwks.json`.
@@ -61,7 +61,7 @@ Concerns are cleanly separated:
 
 ### Why the `aud` check matters with `client_credentials`
 
-AuthGate's MCP guide is explicit: the `client_credentials` grant **has no
+Signet's MCP guide is explicit: the `client_credentials` grant **has no
 per-client resource allowlist**. Any client that can mint a token from this
 authorization server can mint one against any `resource` value it asks for,
 and that token will pass signature/`iss`/`exp` verification at _any_ MCP
@@ -70,7 +70,7 @@ resource server fronted by the same issuer.
 The defence is RFC 8707 + audience checking:
 
 1. The client passes `resource=<MCP-URL>` on the token request (RFC 8707
-   resource indicator). AuthGate copies that value into the JWT's `aud`
+   resource indicator). Signet copies that value into the JWT's `aud`
    claim and into the introspection response.
 2. The resource server compares the token's `aud` to its own configured
    resource URL on every request. Anything else is rejected with `401
@@ -125,7 +125,7 @@ go run ./03-oauth-mcp/client-credentials \
 | --------------------------- | -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
 | `-addr`                     | `:8096`                          | Address to listen on                                                                                                                     |
 | `-resource`                 | `http://localhost<addr>/mcp`     | Public URL of this resource. Echoed in `/.well-known/oauth-protected-resource` **and** used as the expected `aud` value on every request |
-| `-auth-server`              | `http://localhost:8080`          | Issuer URL of the external authorization server (e.g. AuthGate)                                                                          |
+| `-auth-server`              | `http://localhost:8080`          | Issuer URL of the external authorization server (e.g. Signet)                                                                          |
 | `-introspection-url`        | `<auth-server>/oauth/introspect` | RFC 7662 introspection endpoint                                                                                                          |
 | `-introspect-client-id`     | _(required)_                     | Client id this resource server uses to call the introspection endpoint                                                                   |
 | `-introspect-client-secret` | _(required)_                     | Client secret this resource server uses to call the introspection endpoint                                                               |
@@ -133,16 +133,16 @@ go run ./03-oauth-mcp/client-credentials \
 | `-require-resource-binding` | `false`                          | When `true`, reject tokens whose introspection response has no `aud` claim. When `false`, accept them with a WARN log                    |
 | `-log-level`                | `INFO`                           | `DEBUG`, `INFO`, `WARN`, or `ERROR`                                                                                                      |
 
-## End-to-end flow with AuthGate
+## End-to-end flow with Signet
 
-The canonical walkthrough uses AuthGate at `https://authgate.local:8080`
+The canonical walkthrough uses Signet at `https://signet.local:8080`
 with its self-signed cert already trusted in the system trust store. The
 default `-auth-server` value stays `http://localhost:8080` so the example
 also works against an ad-hoc AS without TLS.
 
-1. **Run AuthGate** at `https://authgate.local:8080` and register two clients:
+1. **Run Signet** at `https://signet.local:8080` and register two clients:
    - `mcp-resource` / `rs-secret` — this MCP server, granted the `introspect`
-     scope (or whatever your AuthGate deployment requires for calling
+     scope (or whatever your Signet deployment requires for calling
      `/oauth/introspect`).
    - `my-service` / `s3cr3t` — the application calling MCP, granted scopes
      `mcp:read mcp:write`.
@@ -152,17 +152,17 @@ also works against an ad-hoc AS without TLS.
 
    ```bash
    go run ./03-oauth-mcp/client-credentials \
-     -auth-server https://authgate.local:8080 \
+     -auth-server https://signet.local:8080 \
      -resource https://mcp.example/mcp \
      -require-resource-binding=true \
      -introspect-client-id mcp-resource \
      -introspect-client-secret rs-secret
    ```
 
-3. **Fetch a token from AuthGate** with the RFC 8707 `resource` parameter:
+3. **Fetch a token from Signet** with the RFC 8707 `resource` parameter:
 
    ```bash
-   TOKEN=$(curl -s -X POST https://authgate.local:8080/oauth/token \
+   TOKEN=$(curl -s -X POST https://signet.local:8080/oauth/token \
      -u my-service:s3cr3t \
      -d 'grant_type=client_credentials' \
      -d 'scope=mcp:read mcp:write' \
@@ -230,7 +230,7 @@ ad-hoc AS without metadata are not blocked.
 
 And it sends the **RFC 8707** `resource=<MCP-URL>` parameter on every token
 request. The value comes from `-resource` (defaulting to `-mcp-url`), and
-AuthGate binds it to the issued JWT's `aud` claim. This is what makes the
+Signet binds it to the issued JWT's `aud` claim. This is what makes the
 server's `aud` check pass.
 
 Run it against a live MCP server + authorization server:
@@ -239,7 +239,7 @@ Run it against a live MCP server + authorization server:
 go run ./03-oauth-mcp/client-credentials/client \
   -mcp-url http://localhost:8096/mcp \
   -resource https://mcp.example/mcp \
-  -auth-server https://authgate.local:8080 \
+  -auth-server https://signet.local:8080 \
   -client_id my-service \
   -client_secret s3cr3t \
   -scopes 'mcp:read mcp:write'
@@ -258,7 +258,7 @@ msg="verification complete"
 
 The `echo_message` output proves the token round-trip: the scopes and
 `client_id` printed by the tool come from `req.Extra.TokenInfo`, which the
-server populated from AuthGate's introspection response.
+server populated from Signet's introspection response.
 
 ### Client flags
 
@@ -366,7 +366,7 @@ expose:
   `client_credentials`), and `token_endpoint`.
 - A `client_credentials` `token_endpoint` compatible with RFC 6749 §4.4.
 
-Production [AuthGate](https://github.com/go-authgate/authgate) already exposes
+Production [Signet](https://github.com/go-signet/signet) already exposes
 these; a fake authorization server used in tests must include them too.
 
 ## Implementation notes
@@ -382,9 +382,9 @@ these; a fake authorization server used in tests must include them too.
   server's `-resource` value on every request. With
   `-require-resource-binding=true` the server also rejects tokens whose
   introspection response carries no `aud` at all — relevant whenever the
-  authorization server (AuthGate included) lets the `client_credentials`
-  grant fall back to a static `JWT_AUDIENCE`. See the AuthGate
-  [MCP integration guide](https://github.com/go-authgate/authgate) for the
+  authorization server (Signet included) lets the `client_credentials`
+  grant fall back to a static `JWT_AUDIENCE`. See the Signet
+  [MCP integration guide](https://github.com/go-signet/signet) for the
   multi-resource-server caveat.
 - **Scope enforcement:** done by `RequireBearerTokenOptions.Scopes`, not in
   individual tool handlers — so scope changes are a one-line edit.
@@ -395,7 +395,7 @@ these; a fake authorization server used in tests must include them too.
 
 [`server-jwks/server.go`](server-jwks/server.go) is the same MCP server with
 the introspection verifier swapped for a local JWKS verifier built on
-[`github.com/go-authgate/sdk-go/jwksauth`](https://github.com/go-authgate/sdk-go).
+[`github.com/go-signet/sdk-go/jwksauth`](https://github.com/go-signet/sdk-go).
 The MCP SDK's `auth.RequireBearerToken` stays the outer middleware; the
 SDK's verifier is wrapped in a small adapter (`jwksVerifier.Verify`) that
 satisfies the SDK's `Verify(ctx, token, *http.Request) (*auth.TokenInfo, error)`
@@ -407,8 +407,8 @@ What the adapter does on every request:
    signature against the cached JWKS, plus the standard `iss`, `aud`, `exp`,
    and `nbf` checks.
 2. **Re-decodes the raw payload** to read the `type` claim and rejects the
-   token if `type != "access"`. AuthGate's SDK does not surface `type` on
-   its parsed `Claims` struct, but AuthGate's MCP guide warns that without
+   token if `type != "access"`. Signet's SDK does not surface `type` on
+   its parsed `Claims` struct, but Signet's MCP guide warns that without
    this check a _refresh_ JWT presented as a Bearer would otherwise pass
    signature, `iss`, `aud`, and `exp` checks unchanged.
 3. Re-checks the audience explicitly so the success and failure paths emit
@@ -419,12 +419,12 @@ What the adapter does on every request:
 go run ./03-oauth-mcp/client-credentials/server-jwks \
   -addr :8097 \
   -resource https://mcp.example/mcp \
-  -auth-server https://authgate.local:8080
+  -auth-server https://signet.local:8080
 ```
 
 OIDC discovery runs once at startup against `-auth-server` (15s timeout).
 If the authorization server is not reachable, `server-jwks` refuses to
-start — start AuthGate first. The same Go and Python clients work against
+start — start Signet first. The same Go and Python clients work against
 this binary; only the address changes.
 
 ### JWKS variant flags
@@ -435,7 +435,7 @@ this binary; only the address changes.
 | `-resource`             | `http://localhost<addr>/mcp` | Public URL of this resource. Used both in metadata and as the required `aud` value                                 |
 | `-auth-server`          | `http://localhost:8080`      | Issuer URL — OIDC discovery target at startup                                                                      |
 | `-required-scopes`      | `mcp:read`                   | Space-separated scopes required on every MCP request                                                               |
-| `-private-claim-prefix` | `extra`                      | Must match AuthGate's `JWT_PRIVATE_CLAIM_PREFIX`. If your deployment overrides it, set this flag to the same value |
+| `-private-claim-prefix` | `extra`                      | Must match Signet's `JWT_PRIVATE_CLAIM_PREFIX`. If your deployment overrides it, set this flag to the same value |
 | `-discovery-timeout`    | `15s`                        | OIDC discovery timeout at startup                                                                                  |
 | `-verify-timeout`       | `5s`                         | Per-request JWT verification timeout (bounds JWKS fetch on cache miss)                                             |
 | `-log-level`            | `INFO`                       | `DEBUG`, `INFO`, `WARN`, `ERROR`                                                                                   |
@@ -448,7 +448,7 @@ this binary; only the address changes.
 | Revocation visibility          | Instant                                                 | Bounded by access-token TTL (no revocation between checks)              |
 | Issuer availability dependence | Per request — issuer outage = 5xx                       | Per request: none after warmup. Startup: required for discovery         |
 | Horizontal scaling             | Limited by issuer rate                                  | Trivial — verification is local                                         |
-| Dependency footprint           | None beyond the MCP SDK                                 | `github.com/go-authgate/sdk-go` + `go-oidc/v3` (transitive)             |
+| Dependency footprint           | None beyond the MCP SDK                                 | `github.com/go-signet/sdk-go` + `go-oidc/v3` (transitive)             |
 | Refresh-as-access protection   | Issuer enforces (introspection returns `active: false`) | **Caller must check `type=="access"` explicitly** — done by the adapter |
 
 ## Alternatives

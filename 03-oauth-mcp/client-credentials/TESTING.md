@@ -16,7 +16,7 @@ self-cleaning.
 - [Scenario 4 — JWKS variant, happy path](#scenario-4--jwks-variant-happy-path)
 - [Scenario 5 — JWKS variant rejects a refresh token used as Bearer](#scenario-5--jwks-variant-rejects-a-refresh-token-used-as-bearer)
   - [Path A — Authorization code flow yields a refresh JWT](#path-a--authorization-code-flow-yields-a-refresh-jwt)
-  - [Path B — AuthGate issues opaque refresh tokens (degenerate case)](#path-b--authgate-issues-opaque-refresh-tokens-degenerate-case)
+  - [Path B — Signet issues opaque refresh tokens (degenerate case)](#path-b--signet-issues-opaque-refresh-tokens-degenerate-case)
   - [Verifying the rejection (Path A)](#verifying-the-rejection-path-a)
 - [Scenario 6 — Python client auto-derives `resource`](#scenario-6--python-client-auto-derives-resource)
 - [Scenario 7 — Manual `curl` walkthrough (no Go or Python client)](#scenario-7--manual-curl-walkthrough-no-go-or-python-client)
@@ -39,27 +39,27 @@ You need these in your `PATH`:
 | `jq`   | decoding the token endpoint response | `jq --version`   |
 | `uv`   | Python client only — Scenario 6      | `uv --version`   |
 
-**AuthGate** is assumed to already be running at
+**Signet** is assumed to already be running at
 `http://localhost:8080` (plain HTTP, no TLS). The walkthrough does NOT
-cover installing AuthGate.
+cover installing Signet.
 
-Two OAuth clients must be registered on that AuthGate instance:
+Two OAuth clients must be registered on that Signet instance:
 
 | Client ID      | Secret      | Purpose                                                              |
 | -------------- | ----------- | -------------------------------------------------------------------- |
 | `mcp-resource` | `rs-secret` | This MCP server's own credentials, used to call `/oauth/introspect`. |
 | `my-service`   | `s3cr3t`    | The calling application, granted scopes `mcp:read mcp:write`.        |
 
-If your AuthGate scope or registration naming differs, replace those
+If your Signet scope or registration naming differs, replace those
 values consistently in every command below.
 
-**Confirm AuthGate is reachable** before going further:
+**Confirm Signet is reachable** before going further:
 
 ```bash
 curl -fsS http://localhost:8080/.well-known/oauth-authorization-server | jq '.issuer, .token_endpoint, .introspection_endpoint'
 ```
 
-Expected: three non-null strings. If this fails, fix AuthGate first; no
+Expected: three non-null strings. If this fails, fix Signet first; no
 scenario will work without it.
 
 ## Build
@@ -200,10 +200,10 @@ level=WARN msg="audience mismatch" expected_aud=https://mcp.example/mcp got_aud=
 **Goal:** prove that with `-require-resource-binding=true`, a token whose
 introspection response carries no `aud` is rejected.
 
-This scenario assumes your AuthGate, when called _without_ the `resource`
+This scenario assumes your Signet, when called _without_ the `resource`
 parameter, returns a JWT whose `aud` is the static fallback
 `JWT_AUDIENCE` — and that the introspection response also omits or
-returns that fallback value. If your AuthGate always populates `aud`
+returns that fallback value. If your Signet always populates `aud`
 regardless, this scenario will pass with `audience mismatch` (Scenario 2
 behaviour) instead of `audience missing or unbound`; either log line
 proves the defence works.
@@ -222,7 +222,7 @@ TOKEN_NO_RES=$(curl -fsS -X POST http://localhost:8080/oauth/token \
 echo "$TOKEN_NO_RES" | cut -d. -f2 | base64 --decode 2>/dev/null | jq '{aud}'
 ```
 
-Note what `aud` is in this JWT — it's whatever AuthGate's `JWT_AUDIENCE`
+Note what `aud` is in this JWT — it's whatever Signet's `JWT_AUDIENCE`
 default is. It will **not** equal `https://mcp.example/mcp`.
 
 Present the token:
@@ -242,7 +242,7 @@ curl -i -X POST http://localhost:8096/mcp \
 - `audience missing or unbound expected_aud=https://mcp.example/mcp`
   (if introspection returned no `aud`), or
 - `audience mismatch expected_aud=https://mcp.example/mcp got_aud=[<jwt-audience>]`
-  (if AuthGate populated the fallback `aud`).
+  (if Signet populated the fallback `aud`).
 
 **Pass criteria:**
 
@@ -269,7 +269,7 @@ Send the same `curl` from above. Two possible outcomes:
 
 - If introspection returns no `aud`: request **succeeds**, server logs
   `WARN msg="token accepted without aud claim"`.
-- If introspection returns AuthGate's fallback `aud`: request still **fails**
+- If introspection returns Signet's fallback `aud`: request still **fails**
   with `audience mismatch` (the `aud` is present and wrong; require-binding
   has no effect).
 
@@ -301,7 +301,7 @@ Expected startup logs:
 msg="client-credentials JWKS MCP server starting" addr=:8097 resource=https://mcp.example/mcp auth_server=http://localhost:8080 issuer=http://localhost:8080 ...
 ```
 
-If you instead see `OIDC discovery failed`, AuthGate isn't reachable — fix
+If you instead see `OIDC discovery failed`, Signet isn't reachable — fix
 that first.
 
 **Terminal B — run the same Go client against the new port:**
@@ -328,7 +328,7 @@ msg="audience verified" expected_aud=https://mcp.example/mcp got_aud=[https://mc
 
 The `jwt verified` line confirms local signature + `iss`/`exp`/`aud`/`nbf`
 checks fired. There must be **no HTTP traffic from `server-jwks` to
-AuthGate** during this scenario (after the one-shot startup discovery) —
+Signet** during this scenario (after the one-shot startup discovery) —
 you can confirm with `tcpdump` if you want:
 
 ```bash
@@ -343,30 +343,30 @@ sudo tcpdump -i any -nn 'port 8080' &
 - [X] Client prints `verification complete`.
 - [X] Server log shows `jwt verified` at DEBUG level.
 - [X] Server log shows `audience verified`.
-- [X] No per-request traffic from `server-jwks` to AuthGate (optional check).
+- [X] No per-request traffic from `server-jwks` to Signet (optional check).
 
 **Cleanup:** leave the server running for Scenario 5.
 
 ## Scenario 5 — JWKS variant rejects a refresh token used as Bearer
 
-**Goal:** prove the adapter's `type=="access"` check fires. AuthGate's
+**Goal:** prove the adapter's `type=="access"` check fires. Signet's
 docs warn that without this check, a refresh JWT presented as a Bearer
 would pass signature/`iss`/`aud`/`exp` checks unchanged.
 
-The `client_credentials` grant does not issue refresh tokens — AuthGate
-only issues them on user-bearing flows. AuthGate does **not** support the
+The `client_credentials` grant does not issue refresh tokens — Signet
+only issues them on user-bearing flows. Signet does **not** support the
 Resource Owner Password Credentials grant (RFC 6749 §4.3), so a one-shot
 `curl` cannot mint a refresh token. The only realistic path is the
-authorization code flow, and only when AuthGate is configured to issue
+authorization code flow, and only when Signet is configured to issue
 refresh tokens as JWTs.
 
 ### Path A — Authorization code flow yields a refresh JWT
 
-Run an authorization code + PKCE flow against AuthGate to obtain a token
+Run an authorization code + PKCE flow against Signet to obtain a token
 response containing `refresh_token`. The sibling
 [`03-oauth-mcp/dcr/oauth-client/`](../dcr/oauth-client/) example
 implements this flow end to end against the workshop's own OAuth server
-— adapt its issuer and client_id/client_secret to point at AuthGate, or
+— adapt its issuer and client_id/client_secret to point at Signet, or
 write a minimal curl-driven flow yourself.
 
 Once you have the token response in `RESPONSE`:
@@ -379,12 +379,12 @@ echo "$REFRESH" | cut -d. -f2 | base64 --decode 2>/dev/null | jq '{type, aud, is
 ```
 
 Expected: `type` is `"refresh"`. If `jq` errors with "parse error" or
-the value is not three base64 segments separated by `.`, your AuthGate
+the value is not three base64 segments separated by `.`, your Signet
 is issuing opaque refresh tokens — skip to Path B.
 
-### Path B — AuthGate issues opaque refresh tokens (degenerate case)
+### Path B — Signet issues opaque refresh tokens (degenerate case)
 
-If AuthGate's refresh tokens are not JWTs, the `type=="access"` defence
+If Signet's refresh tokens are not JWTs, the `type=="access"` defence
 is moot for this issuer: the JWKS verifier rejects the token at the
 signature parsing step, before reaching the `type` check. Confirm with
 any non-JWT string:
@@ -581,12 +581,12 @@ msg="audience verified" expected_aud=https://mcp.example/mcp got_aud=[https://mc
 
 | Symptom                                                      | Likely cause                                                                          | Fix                                                                                             |
 | ------------------------------------------------------------ | ------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
-| Client: `RFC 8414 discovery failed, using fallback`          | AuthGate's metadata endpoint isn't at the standard well-known path, or unreachable    | Pass `-token-url` explicitly to bypass discovery                                                |
+| Client: `RFC 8414 discovery failed, using fallback`          | Signet's metadata endpoint isn't at the standard well-known path, or unreachable    | Pass `-token-url` explicitly to bypass discovery                                                |
 | Server: `audience mismatch` when you expect verification     | Client sent a different `resource` than the server is configured with                 | Make `-resource` byte-for-byte equal on both sides                                              |
 | Server: `audience mismatch` from Python client               | Python SDK normalised `--mcp-url` differently (lowercased host, stripped slash, etc.) | Use the actual URL the SDK sent (visible in server DEBUG log) as the server's `-resource` value |
-| Server: `OIDC discovery failed` on `server-jwks` startup     | AuthGate not reachable at `-auth-server` URL during startup discovery                 | Start AuthGate first; verify with the curl from "Prerequisites"                                 |
+| Server: `OIDC discovery failed` on `server-jwks` startup     | Signet not reachable at `-auth-server` URL during startup discovery                 | Start Signet first; verify with the curl from "Prerequisites"                                 |
 | All requests log at INFO `audience verified` (very noisy)    | Working as designed — every accepted request emits this for traceability              | Demote to DEBUG by editing the verifier if production needs quieter logs                        |
-| Test for `type==access` is degenerate (no JWT refresh token) | AuthGate is issuing opaque refresh tokens                                             | Documented in Scenario 5; the signature check still rejects non-JWTs                            |
+| Test for `type==access` is degenerate (no JWT refresh token) | Signet is issuing opaque refresh tokens                                             | Documented in Scenario 5; the signature check still rejects non-JWTs                            |
 
 ## Full cleanup
 

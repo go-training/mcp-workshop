@@ -1,13 +1,13 @@
 # `oauth-client/` — Authorization Code + PKCE example client
 
 Runs the full OAuth 2.1 **Authorization Code + PKCE** flow against an
-external authorization server (e.g. AuthGate), persists the resulting tokens
+external authorization server (e.g. Signet), persists the resulting tokens
 on disk via
-[`github.com/go-authgate/sdk-go/credstore`](https://pkg.go.dev/github.com/go-authgate/sdk-go/credstore),
+[`github.com/go-signet/sdk-go/credstore`](https://pkg.go.dev/github.com/go-signet/sdk-go/credstore),
 and then exercises the dcr/ MCP resource server using
 [`github.com/modelcontextprotocol/go-sdk`](https://github.com/modelcontextprotocol/go-sdk).
 
-For the architecture diagram, AuthGate prerequisites, and the Gap A / Gap B
+For the architecture diagram, Signet prerequisites, and the Gap A / Gap B
 caveats that apply to the whole dcr/ split, see the parent
 [`../README.md`](../README.md). This file is a short reference for the
 client alone.
@@ -15,7 +15,7 @@ client alone.
 ## Why the auth-code flow is hand-rolled
 
 The natural choice would be
-[`go-authgate/sdk-go/authflow.RunAuthCodeFlow`](https://pkg.go.dev/github.com/go-authgate/sdk-go/authflow#RunAuthCodeFlow) —
+[`go-signet/sdk-go/authflow.RunAuthCodeFlow`](https://pkg.go.dev/github.com/go-signet/sdk-go/authflow#RunAuthCodeFlow) —
 it already opens a browser, runs a local callback server, generates PKCE,
 and exchanges the code. We do not use it because sdk-go v0.11.0 has no
 extension point for the **RFC 8707 `resource=` parameter** on either the
@@ -46,7 +46,7 @@ go build -o ./bin/oauth-client ./03-oauth-mcp/dcr/oauth-client
   -scopes      "openid profile email"
 ```
 
-On first run: a browser opens, you log in on AuthGate (via the federated
+On first run: a browser opens, you log in on Signet (via the federated
 provider), the browser redirects to `http://127.0.0.1:8085/callback`, the
 client exchanges the code, and writes the token to
 `~/.cache/dcr-mcp-client/<client_id>.json`.
@@ -74,7 +74,7 @@ After a successful exchange the JWT's payload includes:
 ```json
 {
   "iss": "http://localhost:8080",
-  "sub": "user-uuid-on-authgate",
+  "sub": "user-uuid-on-signet",
   "aud": ["http://localhost:8095/mcp"],
   "client_id": "<your-registered-client-id>",
   "scope": "openid profile email",

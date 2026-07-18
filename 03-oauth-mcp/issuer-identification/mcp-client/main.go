@@ -14,7 +14,7 @@
 //
 // Run it two ways:
 //
-//	-auth-server <AuthGate>  : honest happy path; iss matches; reaches mcp-server
+//	-auth-server <Signet>  : honest happy path; iss matches; reaches mcp-server
 //	-auth-server <evil-as>   : mix-up; without -defense the code is stolen,
 //	                           with -defense the iss mismatch aborts the flow.
 package main
@@ -40,7 +40,7 @@ import (
 
 	"github.com/go-training/mcp-workshop/pkg/logger"
 
-	"github.com/go-authgate/sdk-go/authflow"
+	"github.com/go-signet/sdk-go/authflow"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/modelcontextprotocol/go-sdk/oauthex"
 )
@@ -79,7 +79,7 @@ func parseFlags() *config {
 	)
 	flag.StringVar(&authServer, "auth-server", "http://localhost:8080",
 		"authorization server issuer URL to trust and discover "+
-			"(AuthGate for the honest path, evil-as for the mix-up)")
+			"(Signet for the honest path, evil-as for the mix-up)")
 	flag.StringVar(&mcpURL, "mcp-url", "http://localhost:8095/mcp",
 		"MCP streamable HTTP endpoint reached on the happy path")
 	flag.StringVar(&resource, "resource", "",
