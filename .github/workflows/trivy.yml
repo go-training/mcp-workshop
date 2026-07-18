@@ -28,7 +28,10 @@ jobs:
           scan-ref: .
           format: sarif
           output: trivy-results.sarif
-          severity: CRITICAL,HIGH
+          # No severity filter on purpose: the Go vuln DB does not assign CVSS
+          # scores, so Trivy reports most Go advisories as UNKNOWN. A
+          # `severity: CRITICAL,HIGH` filter silently drops all of them (this
+          # is how CVE-2026-56852 in golang.org/x/text went unnoticed).
           ignore-unfixed: true
 
       - name: Upload Trivy scan results to GitHub Security tab

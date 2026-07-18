@@ -1,0 +1,19 @@
+version: 2
+updates:
+  # Go modules — the repo has a single module at the root shared by 01-05.
+  - package-ecosystem: "gomod"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+
+  # Python MCP client for the client-credentials sample.
+  - package-ecosystem: "uv"
+    directory: "/03-oauth-mcp/client-credentials/client-python"
+    schedule:
+      interval: "weekly"
+
+  # Keeps the action versions used by ci/release/trivy workflows current.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
