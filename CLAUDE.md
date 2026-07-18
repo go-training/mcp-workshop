@@ -176,8 +176,8 @@ The repository includes `mcp.json` in the root for MCP client integration:
 
 ## Key Dependencies
 
-- `github.com/mark3labs/mcp-go`: Core MCP protocol implementation
-  - **Note**: Replaced via `go.mod` with `github.com/appleboy/mcp-go` fork
+- `github.com/mark3labs/mcp-go`: Core MCP protocol implementation (upstream, no
+  `replace` directive — an earlier fork pin was removed in `0af87d8`)
 - `github.com/gin-gonic/gin`: HTTP router and middleware
 - `github.com/google/uuid`: Request ID generation
 - `golang.org/x/oauth2`: OAuth 2.0 client and PKCE challenge handling

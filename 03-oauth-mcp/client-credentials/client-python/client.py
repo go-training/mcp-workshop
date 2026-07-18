@@ -4,7 +4,8 @@ Verifies the client-credentials MCP server by fetching an access token from an
 external authorization server (e.g. Signet) via the client_credentials grant,
 then connecting to the MCP server, listing tools, and calling each one.
 
-Requires mcp >= 1.27 (the `ClientCredentialsOAuthProvider` extension).
+Requires mcp >= 1.28.1 (the `ClientCredentialsOAuthProvider` extension, plus the
+transport fixes from GHSA advisories against earlier 1.x releases).
 """
 
 from __future__ import annotations
