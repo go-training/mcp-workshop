@@ -10,5 +10,5 @@ dependencies = [
     # Transitive via mcp -> pyjwt[crypto]; constrained here only as a security
     # floor. 48.0.1 patches the bundled-OpenSSL advisory while still shipping
     # Intel-macOS (universal2) and win32 wheels, which 49.x dropped.
-    "cryptography>=48.0.1,<49",
+    "cryptography>=49.0.0,<50",
 ]
