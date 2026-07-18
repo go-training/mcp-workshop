@@ -279,7 +279,7 @@ server populated from Signet's introspection response.
 A companion client under [`client-python/`](client-python/client.py) exercises
 the same flow using the official
 [Python MCP SDK](https://github.com/modelcontextprotocol/python-sdk)
-(`mcp >= 1.27`) and its `ClientCredentialsOAuthProvider` extension. Dependencies
+(`mcp >= 1.28.1`) and its `ClientCredentialsOAuthProvider` extension. Dependencies
 are managed with [uv](https://docs.astral.sh/uv/).
 
 What the client does:
@@ -298,7 +298,7 @@ What the client does:
 ### `resource` is auto-derived — no code change needed
 
 The Python script in this repo does **not** explicitly pass `resource`, and
-yet RFC 8707 binding still works. The MCP Python SDK (`mcp >= 1.27`) auto-
+yet RFC 8707 binding still works. The MCP Python SDK (`mcp >= 1.28.1`) auto-
 derives `resource` from `server_url` via `OAuthContext.get_resource_url()`
 inside `src/mcp/client/auth/extensions/client_credentials.py` and emits it
 on the token request whenever

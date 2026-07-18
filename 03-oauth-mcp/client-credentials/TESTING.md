@@ -432,7 +432,7 @@ level=WARN msg="non-access token rejected" got_type=refresh subject=...
 
 ## Scenario 6 — Python client auto-derives `resource`
 
-**Goal:** prove the Python MCP SDK (`mcp >= 1.27`) emits the
+**Goal:** prove the Python MCP SDK (`mcp >= 1.28.1`) emits the
 RFC 8707 `resource` parameter automatically, derived from `--mcp-url`,
 and that the resulting `aud` matches the server's `-resource`.
 
