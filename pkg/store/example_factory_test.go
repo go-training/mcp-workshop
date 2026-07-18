@@ -201,7 +201,9 @@ func Example_switchingStores() {
 	}
 	fmt.Println("Memory store: OK")
 
-	// Use with Redis store (if available)
+	// The same function works against Redis. Exercise it when a server happens
+	// to be reachable, but keep the printed output identical either way so the
+	// example does not depend on whether the developer has Redis running.
 	redisStore, err := store.NewStore(store.RedisConfig(store.RedisOptions{
 		Addr: "localhost:6379",
 	}))
@@ -211,7 +213,6 @@ func Example_switchingStores() {
 			if err := useStore(redisStore); err != nil {
 				log.Fatal(err)
 			}
-			fmt.Println("Redis store: OK")
 		}()
 	}
 
