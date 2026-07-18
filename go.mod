@@ -8,7 +8,7 @@ require (
 	github.com/gin-gonic/gin v1.12.0
 	github.com/go-signet/sdk-go v1.0.2
 	github.com/google/uuid v1.6.0
-	github.com/mark3labs/mcp-go v0.54.1
+	github.com/mark3labs/mcp-go v0.56.0
 	github.com/modelcontextprotocol/go-sdk v1.6.1
 	github.com/redis/rueidis v1.0.75
 	github.com/testcontainers/testcontainers-go v0.42.0
