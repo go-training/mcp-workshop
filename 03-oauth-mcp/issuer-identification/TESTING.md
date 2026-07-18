@@ -1,17 +1,17 @@
 # Testing runbook: RFC 9207 mix-up attack & defense
 
 This runbook reproduces the three scenarios end-to-end against a running
-[AuthGate](https://github.com/go-authgate/authgate) honest authorization server.
+[Signet](https://github.com/go-signet/signet) honest authorization server.
 Everything runs on `localhost`, so plain HTTP is allowed by the SDK's
 loopback exception.
 
 ## Prerequisites
 
-1. **AuthGate running** as the honest AS at `http://localhost:8080` with at
+1. **Signet running** as the honest AS at `http://localhost:8080` with at
    least one federated identity provider (e.g. GitHub) configured, exactly as
    the `dcr/` and `client-credentials/` examples require.
 
-2. **A client registered at AuthGate** with:
+2. **A client registered at Signet** with:
    - a `client_id` you will pass as `-client_id`,
    - the redirect URI **`http://127.0.0.1:8085/callback`** (the client's local
      callback; the mix-up relies on the honest AS accepting this exact URI),
@@ -20,7 +20,7 @@ loopback exception.
 
 3. **Go toolchain** matching the repo's `go.mod`.
 
-### Step 0 — verify AuthGate emits RFC 9207 `iss` (critical)
+### Step 0 — verify Signet emits RFC 9207 `iss` (critical)
 
 The defense scenario relies on the honest AS putting `iss` in its redirect and
 advertising the flag. Confirm the flag before you start:
@@ -32,11 +32,11 @@ curl -s http://localhost:8080/.well-known/oauth-authorization-server \
 
 Expected: `"authorization_response_iss_parameter_supported":true`.
 
-- If it prints `true`, AuthGate stamps `iss` on the callback and scenario 3 will
+- If it prints `true`, Signet stamps `iss` on the callback and scenario 3 will
   abort as designed.
-- If the flag is **absent or `false`**, this AuthGate build does not implement
+- If the flag is **absent or `false`**, this Signet build does not implement
   RFC 9207, and the defense cannot trigger. In that case the sample's honest AS
-  cannot demonstrate the defense; upgrade AuthGate, or stand up a small standalone
+  cannot demonstrate the defense; upgrade Signet, or stand up a small standalone
   honest AS that emits `iss` (left as a documented optional path — not built by
   default).
 
@@ -53,8 +53,8 @@ go run ./03-oauth-mcp/issuer-identification/mcp-server \
   -log-level   INFO
 ```
 
-It performs OIDC discovery against AuthGate at startup; if it exits with
-`OIDC discovery failed`, AuthGate is not reachable at `-auth-server`.
+It performs OIDC discovery against Signet at startup; if it exits with
+`OIDC discovery failed`, Signet is not reachable at `-auth-server`.
 
 **Terminal 2 — malicious authorization server (`:9090`):**
 
@@ -65,7 +65,7 @@ go run ./03-oauth-mcp/issuer-identification/evil-as \
   -log-level INFO
 ```
 
-On startup it discovers AuthGate's authorize/token endpoints and logs
+On startup it discovers Signet's authorize/token endpoints and logs
 `evil-as impersonation target discovered`. Pass `-redeem=false` if you want it
 to only log the capture and not mint a real stolen token.
 
@@ -73,8 +73,8 @@ to only log the capture and not mint a real stolen token.
 
 ## Scenario 1 — Happy path (defense on, honest AS)
 
-Expected issuer = AuthGate. The client discovers AuthGate directly, `iss`
-matches, the code is exchanged at AuthGate, and the client reaches the MCP tool.
+Expected issuer = Signet. The client discovers Signet directly, `iss`
+matches, the code is exchanged at Signet, and the client reaches the MCP tool.
 
 ```bash
 go run ./03-oauth-mcp/issuer-identification/mcp-client \
@@ -96,7 +96,7 @@ A browser opens; authenticate and consent. **Expected client logs:**
 ## Scenario 2 — Mix-up attack, defense OFF (code is stolen)
 
 Expected issuer = `evil-as`. The client discovers `evil-as`, which redirects the
-browser to AuthGate; AuthGate issues a valid code straight to the client
+browser to Signet; Signet issues a valid code straight to the client
 callback. With **no** `-defense`, the client posts that honest code to
 `evil-as`'s token endpoint.
 

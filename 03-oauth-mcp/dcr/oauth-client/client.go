@@ -2,8 +2,8 @@
 // the authorization server from the MCP resource server per RFC 9728
 // (unauthenticated probe → 401 → Protected Resource Metadata), then performs
 // OAuth 2.1 Authorization Code + PKCE against that authorization server
-// (e.g. AuthGate), persists the resulting tokens via
-// github.com/go-authgate/sdk-go/credstore, and then exercises the MCP
+// (e.g. Signet), persists the resulting tokens via
+// github.com/go-signet/sdk-go/credstore, and then exercises the MCP
 // resource server using github.com/modelcontextprotocol/go-sdk.
 //
 // The PKCE flow is hand-rolled (not authflow.RunAuthCodeFlow) because
@@ -34,9 +34,9 @@ import (
 
 	"github.com/go-training/mcp-workshop/pkg/logger"
 
-	"github.com/go-authgate/sdk-go/authflow"
-	"github.com/go-authgate/sdk-go/credstore"
-	"github.com/go-authgate/sdk-go/discovery"
+	"github.com/go-signet/sdk-go/authflow"
+	"github.com/go-signet/sdk-go/credstore"
+	"github.com/go-signet/sdk-go/discovery"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/modelcontextprotocol/go-sdk/oauthex"
 )
@@ -76,7 +76,7 @@ func parseFlags() *config {
 	flag.StringVar(&mcpURL, "mcp-url", "http://localhost:8095/mcp",
 		"MCP streamable HTTP endpoint")
 	flag.StringVar(&authServer, "auth-server", "http://localhost:8080",
-		"OAuth 2.0 authorization server issuer URL (e.g. AuthGate)")
+		"OAuth 2.0 authorization server issuer URL (e.g. Signet)")
 	flag.StringVar(&resource, "resource", "",
 		"RFC 8707 resource indicator sent on /oauth/authorize and /oauth/token "+
 			"(default: -mcp-url; binds the issued JWT's aud claim)")

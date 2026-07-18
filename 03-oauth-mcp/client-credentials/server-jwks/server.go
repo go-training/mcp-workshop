@@ -1,5 +1,5 @@
 // Package main implements an MCP resource server that validates incoming
-// Bearer tokens locally via JWKS, using github.com/go-authgate/sdk-go/jwksauth
+// Bearer tokens locally via JWKS, using github.com/go-signet/sdk-go/jwksauth
 // as the underlying verifier.
 package main
 
@@ -19,13 +19,13 @@ import (
 
 	"github.com/go-training/mcp-workshop/pkg/logger"
 
-	"github.com/go-authgate/sdk-go/jwksauth"
+	"github.com/go-signet/sdk-go/jwksauth"
 	"github.com/modelcontextprotocol/go-sdk/auth"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/modelcontextprotocol/go-sdk/oauthex"
 )
 
-// accessTokenType is the value the JWT `type` claim must carry for AuthGate
+// accessTokenType is the value the JWT `type` claim must carry for Signet
 // access tokens. Refresh JWTs presented as Bearer would otherwise pass
 // signature, iss, aud, and exp checks unchanged — the SDK does not enforce
 // this distinction, and its parsed Claims struct does not surface `type`.
@@ -181,11 +181,11 @@ func main() {
 		"public URL of this MCP resource (defaults to http://localhost<addr>/mcp); "+
 			"also used as the audience this verifier requires in the JWT's aud claim")
 	flag.StringVar(&authServerURL, "auth-server", "http://localhost:8080",
-		"issuer URL of the external OAuth 2.0 authorization server (e.g. AuthGate)")
+		"issuer URL of the external OAuth 2.0 authorization server (e.g. Signet)")
 	flag.StringVar(&requiredScopes, "required-scopes", "mcp:read",
 		"space-separated scopes an access token must contain to reach /mcp")
 	flag.StringVar(&claimPrefix, "private-claim-prefix", "extra",
-		"AuthGate JWT_PRIVATE_CLAIM_PREFIX — must match the issuer's setting")
+		"Signet JWT_PRIVATE_CLAIM_PREFIX — must match the issuer's setting")
 	flag.DurationVar(&discoveryTO, "discovery-timeout", 15*time.Second,
 		"timeout for the OIDC discovery call at startup")
 	flag.DurationVar(&verifyTO, "verify-timeout", 5*time.Second,

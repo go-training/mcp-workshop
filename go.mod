@@ -6,7 +6,7 @@ require (
 	github.com/appleboy/graceful v1.3.0
 	github.com/gin-contrib/slog v1.2.1
 	github.com/gin-gonic/gin v1.12.0
-	github.com/go-authgate/sdk-go v0.14.0
+	github.com/go-signet/sdk-go v1.0.2
 	github.com/google/uuid v1.6.0
 	github.com/mark3labs/mcp-go v0.54.1
 	github.com/modelcontextprotocol/go-sdk v1.6.1
@@ -33,7 +33,7 @@ require (
 	github.com/containerd/errdefs/pkg v0.3.0 // indirect
 	github.com/containerd/log v0.1.0 // indirect
 	github.com/containerd/platforms v0.2.1 // indirect
-	github.com/coreos/go-oidc/v3 v3.18.0 // indirect
+	github.com/coreos/go-oidc/v3 v3.19.0 // indirect
 	github.com/cpuguy83/dockercfg v0.3.2 // indirect
 	github.com/danieljoos/wincred v1.2.3 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect

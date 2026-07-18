@@ -103,26 +103,26 @@
     },
     {
       "type": "rectangle",
-      "id": "hdr_authgate",
+      "id": "hdr_signet",
       "x": 1000, "y": 150, "width": 160, "height": 56,
       "strokeColor": "#1e3a5f", "backgroundColor": "#93c5fd",
       "fillStyle": "solid", "strokeWidth": 2, "strokeStyle": "solid",
       "roughness": 0, "opacity": 100, "angle": 0, "seed": 101031,
       "version": 1, "versionNonce": 101032, "isDeleted": false,
-      "groupIds": [], "boundElements": [{"id": "hdr_authgate_t", "type": "text"}],
+      "groupIds": [], "boundElements": [{"id": "hdr_signet_t", "type": "text"}],
       "link": null, "locked": false, "roundness": {"type": 3}
     },
     {
-      "type": "text", "id": "hdr_authgate_t",
+      "type": "text", "id": "hdr_signet_t",
       "x": 1010, "y": 168, "width": 140, "height": 20,
-      "text": "AuthGate", "originalText": "AuthGate",
+      "text": "Signet", "originalText": "Signet",
       "fontSize": 18, "fontFamily": 3, "textAlign": "center", "verticalAlign": "middle",
       "strokeColor": "#374151", "backgroundColor": "transparent",
       "fillStyle": "solid", "strokeWidth": 1, "strokeStyle": "solid",
       "roughness": 0, "opacity": 100, "angle": 0, "seed": 101033,
       "version": 1, "versionNonce": 101034, "isDeleted": false,
       "groupIds": [], "boundElements": null, "link": null, "locked": false,
-      "containerId": "hdr_authgate", "lineHeight": 1.25
+      "containerId": "hdr_signet", "lineHeight": 1.25
     },
     {
       "type": "rectangle",
@@ -185,7 +185,7 @@
       "containerId": null, "lineHeight": 1.25
     },
     {
-      "type": "text", "id": "sub_authgate",
+      "type": "text", "id": "sub_signet",
       "x": 1000, "y": 210, "width": 160, "height": 16,
       "text": "honest AS :8080", "originalText": "honest AS :8080",
       "fontSize": 12, "fontFamily": 3, "textAlign": "center", "verticalAlign": "top",
@@ -240,7 +240,7 @@
       "points": [[0, 0], [0, 528]]
     },
     {
-      "type": "line", "id": "life_authgate",
+      "type": "line", "id": "life_signet",
       "x": 1080, "y": 232, "width": 0, "height": 528,
       "strokeColor": "#94a3b8", "backgroundColor": "transparent",
       "fillStyle": "solid", "strokeWidth": 1, "strokeStyle": "dashed",
@@ -455,7 +455,7 @@
     {
       "type": "text", "id": "out_stolen_t",
       "x": 642, "y": 726, "width": 266, "height": 60,
-      "text": "evil-as CAPTURES the code,\nredeems it at AuthGate →\nSTOLEN access token", "originalText": "evil-as CAPTURES the code,\nredeems it at AuthGate →\nSTOLEN access token",
+      "text": "evil-as CAPTURES the code,\nredeems it at Signet →\nSTOLEN access token", "originalText": "evil-as CAPTURES the code,\nredeems it at Signet →\nSTOLEN access token",
       "fontSize": 15, "fontFamily": 3, "textAlign": "center", "verticalAlign": "middle",
       "strokeColor": "#7f1d1d", "backgroundColor": "transparent",
       "fillStyle": "solid", "strokeWidth": 1, "strokeStyle": "solid",

@@ -7,7 +7,7 @@
 // hit the AS — e.g. so revocations propagate immediately — at the cost of
 // one extra HTTP round-trip per request.
 //
-// Why not use github.com/go-authgate/sdk-go/middleware.BearerAuth directly?
+// Why not use github.com/go-signet/sdk-go/middleware.BearerAuth directly?
 // The SDK's IntrospectionResult does not surface the `aud` claim, so a
 // middleware.BearerAuth pipeline cannot enforce the RFC 8707 resource binding
 // that this module requires (the plan calls this out explicitly). We use the
@@ -34,7 +34,7 @@ import (
 
 	"github.com/go-training/mcp-workshop/pkg/logger"
 
-	"github.com/go-authgate/sdk-go/discovery"
+	"github.com/go-signet/sdk-go/discovery"
 	"github.com/modelcontextprotocol/go-sdk/auth"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/modelcontextprotocol/go-sdk/oauthex"
@@ -175,7 +175,7 @@ func buildResourceMetadataURL(resourceURL, metadataPath string) (string, error) 
 	return u.Scheme + "://" + u.Host + metadataPath, nil
 }
 
-// checkAudience enforces the RFC 8707 resource binding contract. AuthGate's
+// checkAudience enforces the RFC 8707 resource binding contract. Signet's
 // introspection endpoint surfaces the JWT `aud` claim verbatim, so we can
 // reject tokens minted for a different MCP resource even when the user
 // happened to consent on the same authorization server.
@@ -228,7 +228,7 @@ func main() {
 	flag.StringVar(&resourceURL, "resource", "",
 		"public URL of this MCP resource (defaults to http://localhost<addr>/mcp)")
 	flag.StringVar(&authServerURL, "auth-server", "http://localhost:8080",
-		"issuer URL of the external OAuth 2.0 authorization server (e.g. AuthGate)")
+		"issuer URL of the external OAuth 2.0 authorization server (e.g. Signet)")
 	flag.StringVar(&introspectionURL, "introspection-url", "",
 		"RFC 7662 introspection endpoint (default: OIDC discovery from -auth-server)")
 	flag.StringVar(&introspectClientID, "introspect-client-id", "",

@@ -5,17 +5,17 @@
 // authorization server so an MCP client that "trusts" it will start an
 // Authorization Code + PKCE flow against it. But its /authorize endpoint does
 // not authenticate anyone: it redirects the browser to the *honest*
-// authorization server (AuthGate), replaying the victim client's own
+// authorization server (Signet), replaying the victim client's own
 // client_id, redirect_uri, state, and PKCE challenge. The honest AS then
 // issues a valid code straight to the client's callback.
 //
 // The attack pays off at evil-as's /token endpoint: a client that does not
 // validate the RFC 9207 `iss` parameter believes it is still talking to
 // evil-as and POSTs the honest code (plus code_verifier) here. evil-as logs
-// the capture and, with -redeem, replays the form to AuthGate's token endpoint
+// the capture and, with -redeem, replays the form to Signet's token endpoint
 // to mint and print a real stolen access token.
 //
-// RFC 9207 defeats this: the honest AS stamps `iss=<AuthGate>` on the callback,
+// RFC 9207 defeats this: the honest AS stamps `iss=<Signet>` on the callback,
 // which does not match the evil-as issuer the client expected, so a
 // defense-enabled client aborts before it ever reaches this /token endpoint.
 package main
@@ -69,7 +69,7 @@ func run() error {
 	flag.StringVar(&issuer, "issuer", "http://localhost:9090",
 		"public issuer URL this malicious AS advertises (what the client will trust)")
 	flag.StringVar(&honestAS, "honest-as", "http://localhost:8080",
-		"issuer URL of the honest authorization server (AuthGate) to impersonate")
+		"issuer URL of the honest authorization server (Signet) to impersonate")
 	flag.BoolVar(&redeem, "redeem", true,
 		"replay the captured code at the honest token endpoint and print the stolen token")
 	flag.StringVar(&logLevel, "log-level", "INFO", "log level: DEBUG, INFO, WARN, ERROR")

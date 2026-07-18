@@ -140,7 +140,7 @@ func (i *introspector) Verify(
 }
 
 // checkAudience enforces the RFC 8707 resource binding contract. The
-// `client_credentials` grant has no per-client resource allowlist on AuthGate,
+// `client_credentials` grant has no per-client resource allowlist on Signet,
 // so without this check any access token issued by the same authorization
 // server would be accepted by any MCP resource server sharing that issuer.
 func (i *introspector) checkAudience(ctx context.Context, aud audClaim) error {
@@ -250,7 +250,7 @@ func main() {
 	flag.StringVar(&resourceURL, "resource", "",
 		"public URL of this MCP resource (defaults to http://localhost<addr>/mcp)")
 	flag.StringVar(&authServerURL, "auth-server", "http://localhost:8080",
-		"issuer URL of the external OAuth 2.0 authorization server (e.g. AuthGate)")
+		"issuer URL of the external OAuth 2.0 authorization server (e.g. Signet)")
 	flag.StringVar(&introspectionURL, "introspection-url", "",
 		"RFC 7662 introspection endpoint (defaults to <auth-server>/oauth/introspect)")
 	flag.StringVar(&introspectClientID, "introspect-client-id", "",

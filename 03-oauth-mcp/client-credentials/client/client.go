@@ -43,7 +43,7 @@ func run() error {
 	flag.StringVar(&mcpURL, "mcp-url", "http://localhost:8096/mcp",
 		"MCP streamable HTTP endpoint")
 	flag.StringVar(&authServer, "auth-server", "http://localhost:8080",
-		"OAuth 2.0 authorization server issuer URL (e.g. AuthGate)")
+		"OAuth 2.0 authorization server issuer URL (e.g. Signet)")
 	flag.StringVar(&tokenURL, "token-url", "",
 		"OAuth 2.0 token endpoint (default: RFC 8414 discovery from -auth-server; "+
 			"falls back to <auth-server>/oauth/token with a WARN)")

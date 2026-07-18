@@ -1,7 +1,7 @@
 """MCP client using the OAuth 2.0 Client Credentials extension.
 
 Verifies the client-credentials MCP server by fetching an access token from an
-external authorization server (e.g. AuthGate) via the client_credentials grant,
+external authorization server (e.g. Signet) via the client_credentials grant,
 then connecting to the MCP server, listing tools, and calling each one.
 
 Requires mcp >= 1.27 (the `ClientCredentialsOAuthProvider` extension).
