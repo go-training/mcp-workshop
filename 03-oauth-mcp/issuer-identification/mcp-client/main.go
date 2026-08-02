@@ -6,11 +6,11 @@
 // with -defense — validates the RFC 9207 `iss` authorization-response
 // parameter before it ever sends the code to a token endpoint.
 //
-// Why hand-rolled: go-sdk v1.6.1's auth.AuthorizationResult exposes only Code
-// and State — there is no Iss field and the SDK does not validate RFC 9207 for
-// you. RFC 9207 support is a client responsibility today, so this sample reads
-// the `iss` query parameter itself and calls validateIssuerResponse. That gap
-// is the lesson.
+// This flow remains hand-rolled so the RFC 9207 defense is visible in the
+// workshop: the sample reads the `iss` query parameter itself and calls
+// validateIssuerResponse. go-sdk v1.7.0 also supports this validation through
+// auth.AuthorizationResult.Iss for applications using its authorization-code
+// handler.
 //
 // Run it two ways:
 //
@@ -122,10 +122,10 @@ func parseFlags() *config {
 	}
 }
 
-// validateIssuerResponse implements the RFC 9207 client check that go-sdk
-// v1.6.1 does not provide. expectedIssuer is the `issuer` from the AS metadata
-// the client discovered; iss is the value returned on the authorization
-// response; issParameterSupported is the AS's advertised
+// validateIssuerResponse keeps the RFC 9207 client check visible for the
+// workshop. expectedIssuer is the `issuer` from the AS metadata the client
+// discovered; iss is the value returned on the authorization response;
+// issParameterSupported is the AS's advertised
 // authorization_response_iss_parameter_supported flag. The comparison is
 // byte-for-byte per RFC 9207 §2.4.
 func validateIssuerResponse(iss, expectedIssuer string, issParameterSupported bool) error {
@@ -167,9 +167,7 @@ func run() error {
 		return fmt.Errorf("AS metadata missing authorize/token endpoint: %+v", meta)
 	}
 
-	// go-sdk's AuthServerMeta does not surface RFC 9207's
-	// authorization_response_iss_parameter_supported flag, so read it ourselves.
-	issSupported := fetchIssParameterSupported(ctx, metaURL)
+	issSupported := meta.AuthorizationResponseIssParameterSupported
 
 	slog.Info("discovered authorization server",
 		"issuer", meta.Issuer,
@@ -207,43 +205,8 @@ func run() error {
 	return nil
 }
 
-// fetchIssParameterSupported reads the RFC 9207
-// authorization_response_iss_parameter_supported flag directly from the AS
-// metadata document. It defaults to false on any error so a missing flag is
-// treated as "not supported".
-func fetchIssParameterSupported(ctx context.Context, metadataURL string) bool {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, metadataURL, nil)
-	if err != nil {
-		return false
-	}
-	req.Header.Set("Accept", "application/json")
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		slog.Warn("could not fetch AS metadata for iss flag", "err", err)
-		return false
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		slog.Warn("AS metadata request for iss flag returned non-200 — treating as unsupported",
-			"status", resp.StatusCode)
-		return false
-	}
-	body, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
-	if err != nil {
-		return false
-	}
-	var doc struct {
-		IssParameterSupported bool `json:"authorization_response_iss_parameter_supported"`
-	}
-	if err := json.Unmarshal(body, &doc); err != nil {
-		slog.Warn("could not parse AS metadata for iss flag", "err", err)
-		return false
-	}
-	return doc.IssParameterSupported
-}
-
 // authResult carries the parameters returned on the authorization response
-// callback, including the RFC 9207 iss the SDK's AuthorizationResult omits.
+// callback, including the RFC 9207 iss read by this hand-rolled flow.
 type authResult struct {
 	code string
 	iss  string

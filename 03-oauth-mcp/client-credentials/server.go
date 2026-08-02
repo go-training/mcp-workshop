@@ -1,7 +1,7 @@
 // Package main implements an MCP resource server that validates incoming
 // Bearer tokens by calling an external OAuth 2.0 authorization server's
 // RFC 7662 introspection endpoint. Built against
-// github.com/modelcontextprotocol/go-sdk v1.5.0.
+// github.com/modelcontextprotocol/go-sdk v1.7.0.
 package main
 
 import (
