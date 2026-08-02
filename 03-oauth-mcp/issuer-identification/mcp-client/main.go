@@ -6,11 +6,11 @@
 // with -defense — validates the RFC 9207 `iss` authorization-response
 // parameter before it ever sends the code to a token endpoint.
 //
-// Why hand-rolled: go-sdk v1.6.1's auth.AuthorizationResult exposes only Code
-// and State — there is no Iss field and the SDK does not validate RFC 9207 for
-// you. RFC 9207 support is a client responsibility today, so this sample reads
-// the `iss` query parameter itself and calls validateIssuerResponse. That gap
-// is the lesson.
+// This flow remains hand-rolled so the RFC 9207 defense is visible in the
+// workshop: the sample reads the `iss` query parameter itself and calls
+// validateIssuerResponse. go-sdk v1.7.0 also supports this validation through
+// auth.AuthorizationResult.Iss for applications using its authorization-code
+// handler.
 //
 // Run it two ways:
 //

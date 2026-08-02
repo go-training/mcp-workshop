@@ -1,5 +1,5 @@
 // Package main is a verification client for the client-credentials MCP
-// server, built with github.com/modelcontextprotocol/go-sdk v1.5.0.
+// server, built with github.com/modelcontextprotocol/go-sdk v1.7.0.
 package main
 
 import (
