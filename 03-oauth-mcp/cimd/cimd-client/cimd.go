@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -114,4 +115,31 @@ func metadataHandler(path string, body []byte) http.HandlerFunc {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write(body)
 	}
+}
+
+// validateOriginPort ensures the port the metadata origin binds (-cimd-addr)
+// matches the port advertised in the CIMD URL (-cimd-url). Hosts are not
+// compared — binding a wildcard address like ":9443" while advertising
+// https://localhost:9443/… is a legitimate deployment — but a port mismatch
+// always means Signet would fetch a URL nothing answers, so catch it at
+// startup instead of as a confusing preflight or SSRF-looking failure.
+func validateOriginPort(cimdAddr, cimdURL string) error {
+	_, listenPort, err := net.SplitHostPort(cimdAddr)
+	if err != nil {
+		return fmt.Errorf("invalid -cimd-addr %q: %w", cimdAddr, err)
+	}
+	u, err := url.Parse(cimdURL)
+	if err != nil {
+		return fmt.Errorf("invalid CIMD URL %q: %w", cimdURL, err)
+	}
+	urlPort := u.Port()
+	if urlPort == "" {
+		urlPort = "443"
+	}
+	if listenPort != urlPort {
+		return fmt.Errorf("-cimd-addr listens on port %s but -cimd-url advertises "+
+			"port %s — the client_id would point at an address the origin is not "+
+			"serving", listenPort, urlPort)
+	}
+	return nil
 }

@@ -156,6 +156,9 @@ func run() error {
 	if err != nil {
 		return err
 	}
+	if err := validateOriginPort(cfg.cimdAddr, cfg.cimdURL); err != nil {
+		return err
+	}
 	stopOrigin, err := startMetadataOrigin(cfg, doc)
 	if err != nil {
 		return err
@@ -637,7 +640,12 @@ func printToolResult(name string, r *mcp.CallToolResult) {
 		}
 	}
 	if r.StructuredContent != nil {
-		b, _ := json.MarshalIndent(r.StructuredContent, "", "  ")
+		b, err := json.MarshalIndent(r.StructuredContent, "", "  ")
+		if err != nil {
+			slog.Error("tool structured content is not marshalable",
+				"tool", name, "err", err)
+			return
+		}
 		slog.Info("tool structured content", "tool", name, "json", string(b))
 	}
 }

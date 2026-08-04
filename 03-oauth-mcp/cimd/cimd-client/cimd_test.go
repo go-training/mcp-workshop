@@ -3,12 +3,16 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
 func TestValidateCIMDURL(t *testing.T) {
@@ -233,5 +237,77 @@ func TestValidateIssuerResponse(t *testing.T) {
 					tt.iss, issuer, tt.supported, err, tt.wantErr)
 			}
 		})
+	}
+}
+
+func TestValidateOriginPort(t *testing.T) {
+	tests := []struct {
+		name    string
+		addr    string
+		url     string
+		wantErr bool
+	}{
+		{
+			name: "matching explicit ports",
+			addr: ":9443",
+			url:  "https://localhost:9443/oauth/client.json",
+		},
+		{
+			name: "wildcard host with matching port",
+			addr: "0.0.0.0:9443",
+			url:  "https://localhost:9443/oauth/client.json",
+		},
+		{
+			name:    "port mismatch",
+			addr:    ":9443",
+			url:     "https://localhost:9444/oauth/client.json",
+			wantErr: true,
+		},
+		{
+			name: "url defaults to 443",
+			addr: ":443",
+			url:  "https://client.example.com/oauth/client.json",
+		},
+		{
+			name:    "url defaults to 443 but addr differs",
+			addr:    ":9443",
+			url:     "https://client.example.com/oauth/client.json",
+			wantErr: true,
+		},
+		{
+			name:    "addr without port",
+			addr:    "9443",
+			url:     "https://localhost:9443/oauth/client.json",
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateOriginPort(tt.addr, tt.url)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("validateOriginPort(%q, %q) = %v, wantErr %v",
+					tt.addr, tt.url, err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestPrintToolResultUnmarshalableStructured(t *testing.T) {
+	var buf bytes.Buffer
+	old := slog.Default()
+	slog.SetDefault(slog.New(slog.NewTextHandler(&buf, nil)))
+	defer slog.SetDefault(old)
+
+	// A func value cannot be marshaled to JSON, forcing the error branch that
+	// previously logged an empty "json" field and hid the cause.
+	printToolResult("who_am_i", &mcp.CallToolResult{StructuredContent: func() {}})
+
+	out := buf.String()
+	if !strings.Contains(out, "not marshalable") {
+		t.Errorf("expected marshal error to be logged, got: %s", out)
+	}
+	if strings.Contains(out, "tool structured content\" json=") {
+		t.Errorf("structured-content line must not be logged on marshal failure, got: %s", out)
 	}
 }
