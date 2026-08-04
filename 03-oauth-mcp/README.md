@@ -73,6 +73,29 @@ check, since go-sdk `v1.6.1` does not validate `iss` for you.
 - **[issuer-identification runbook](issuer-identification/TESTING.md)**:
   step-by-step reproduction of all three scenarios
 
+### CIMD — Client ID Metadata Documents (registration-free clients)
+
+The `cimd/` directory demonstrates **Client ID Metadata Documents**
+([draft-ietf-oauth-client-id-metadata-document](https://datatracker.ietf.org/doc/draft-ietf-oauth-client-id-metadata-document/)),
+the registration mechanism referenced by the MCP 2026-07-28 authorization
+spec: the client hosts a JSON document over HTTPS and the document's URL *is*
+the OAuth `client_id` — no pre-registration and no DCR call. Signet fetches
+the document during the authorization request (SSRF-guarded) and materializes
+a public, PKCE-only client from it.
+
+- **[cimd Implementation](cimd/README.md)**: flow diagram, mkcert setup,
+  Signet configuration (`CIMD_ENABLED`, `CIMD_ALLOWED_RESOURCES`,
+  `CIMD_ALLOW_PRIVATE_NETWORKS`), and troubleshooting
+- **Key Features**:
+  - `cimd-client/` doubles as the HTTPS metadata origin serving its own
+    `client.json` (the CIMD URL must be HTTPS even for loopback — mkcert
+    provides the locally trusted certificate)
+  - Authorization Code + S256 PKCE with the CIMD URL as `client_id`,
+    RFC 9207 `iss` validation always on, no client secret anywhere
+  - `cimd-server/` is an ordinary JWKS-verifying resource server —
+    deliberately CIMD-agnostic, since a resource server only ever sees the
+    resulting access token
+
 ## Quick Start
 
 ```bash
@@ -115,4 +138,14 @@ go run ./client-credentials/client \
   -resource https://mcp.example/mcp \
   -auth-server https://signet.local:8080 \
   -client_id my-service -client_secret s3cr3t
+
+# CIMD (registration-free client, cimd/) — requires mkcert certs and CIMD_ENABLED=true on Signet
+go run ./cimd/cimd-server \
+  -auth-server http://localhost:8080 \
+  -resource    http://localhost:8095/mcp
+go run ./cimd/cimd-client \
+  -auth-server http://localhost:8080 \
+  -mcp-url     http://localhost:8095/mcp \
+  -cimd-url    https://localhost:9443/oauth/client.json \
+  -cert localhost.pem -key localhost-key.pem
 ```

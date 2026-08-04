@@ -1,0 +1,209 @@
+//go:build !windows
+
+package main
+
+import (
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"testing"
+)
+
+func TestValidateCIMDURL(t *testing.T) {
+	tests := []struct {
+		name    string
+		url     string
+		wantErr string // substring of the expected error; "" means valid
+	}{
+		{
+			name: "valid https url with path",
+			url:  "https://client.example.com/oauth/client.json",
+		},
+		{
+			name: "valid loopback with port",
+			url:  "https://localhost:9443/oauth/client.json",
+		},
+		{
+			name: "uppercase scheme accepted",
+			url:  "HTTPS://client.example.com/oauth/client.json",
+		},
+		{
+			name:    "http scheme rejected",
+			url:     "http://client.example.com/oauth/client.json",
+			wantErr: "not https",
+		},
+		{
+			name:    "missing hostname",
+			url:     "https:///oauth/client.json",
+			wantErr: "hostname",
+		},
+		{
+			name:    "root path rejected",
+			url:     "https://client.example.com/",
+			wantErr: "more specific",
+		},
+		{
+			name:    "empty path rejected",
+			url:     "https://client.example.com",
+			wantErr: "more specific",
+		},
+		{
+			name:    "dot segment rejected",
+			url:     "https://client.example.com/oauth/../client.json",
+			wantErr: "segments",
+		},
+		{
+			name:    "fragment rejected",
+			url:     "https://client.example.com/oauth/client.json#frag",
+			wantErr: "fragment",
+		},
+		{
+			name:    "trailing empty fragment rejected",
+			url:     "https://client.example.com/oauth/client.json#",
+			wantErr: "fragment",
+		},
+		{
+			name:    "userinfo rejected",
+			url:     "https://user@client.example.com/oauth/client.json",
+			wantErr: "userinfo",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateCIMDURL(tt.url)
+			if tt.wantErr == "" {
+				if err != nil {
+					t.Fatalf("validateCIMDURL(%q) = %v, want nil", tt.url, err)
+				}
+				return
+			}
+			if err == nil {
+				t.Fatalf("validateCIMDURL(%q) = nil, want error containing %q",
+					tt.url, tt.wantErr)
+			}
+			if !strings.Contains(err.Error(), tt.wantErr) {
+				t.Fatalf("validateCIMDURL(%q) = %v, want error containing %q",
+					tt.url, err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestBuildClientMetadata(t *testing.T) {
+	const (
+		cimdURL     = "https://localhost:9443/oauth/client.json"
+		redirectURI = "http://127.0.0.1:8085/callback"
+	)
+
+	body, err := buildClientMetadata(cimdURL, "Test Client", redirectURI,
+		[]string{"openid", "profile"})
+	if err != nil {
+		t.Fatalf("buildClientMetadata: %v", err)
+	}
+
+	var doc clientMetadata
+	if err := json.Unmarshal(body, &doc); err != nil {
+		t.Fatalf("document is not valid JSON: %v", err)
+	}
+
+	// The client_id member must be byte-identical to the document URL — Signet
+	// binds the fetched document to the URL it fetched it from.
+	if doc.ClientID != cimdURL {
+		t.Errorf("client_id = %q, want %q", doc.ClientID, cimdURL)
+	}
+	if len(doc.RedirectURIs) != 1 || doc.RedirectURIs[0] != redirectURI {
+		t.Errorf("redirect_uris = %v, want [%q]", doc.RedirectURIs, redirectURI)
+	}
+	// CIMD clients are public; anything but "none" is invalid.
+	if doc.TokenEndpointAuthMethod != "none" {
+		t.Errorf("token_endpoint_auth_method = %q, want %q",
+			doc.TokenEndpointAuthMethod, "none")
+	}
+	hasAuthCode := false
+	for _, g := range doc.GrantTypes {
+		if g == "authorization_code" {
+			hasAuthCode = true
+		}
+	}
+	if !hasAuthCode {
+		t.Errorf("grant_types = %v, must include authorization_code", doc.GrantTypes)
+	}
+	if doc.Scope != "openid profile" {
+		t.Errorf("scope = %q, want %q", doc.Scope, "openid profile")
+	}
+}
+
+func TestBuildClientMetadataRejectsBadInput(t *testing.T) {
+	if _, err := buildClientMetadata(
+		"http://localhost:9443/oauth/client.json", "n",
+		"http://127.0.0.1:8085/callback", nil,
+	); err == nil {
+		t.Error("expected error for non-https CIMD URL")
+	}
+	if _, err := buildClientMetadata(
+		"https://localhost:9443/oauth/client.json", "n", "", nil,
+	); err == nil {
+		t.Error("expected error for empty redirect URI")
+	}
+}
+
+func TestMetadataHandler(t *testing.T) {
+	body := []byte(`{"client_id":"https://localhost:9443/oauth/client.json"}`)
+	handler := metadataHandler(body)
+
+	t.Run("GET returns document with headers", func(t *testing.T) {
+		rec := httptest.NewRecorder()
+		handler(rec, httptest.NewRequest(http.MethodGet, "/oauth/client.json", nil))
+
+		if rec.Code != http.StatusOK {
+			t.Fatalf("status = %d, want 200", rec.Code)
+		}
+		if got := rec.Body.String(); got != string(body) {
+			t.Errorf("body = %q, want %q", got, body)
+		}
+		if ct := rec.Header().Get("Content-Type"); !strings.HasPrefix(ct, "application/json") {
+			t.Errorf("Content-Type = %q, want application/json", ct)
+		}
+		if cc := rec.Header().Get("Cache-Control"); cc == "" {
+			t.Error("missing Cache-Control header")
+		}
+	})
+
+	t.Run("POST is rejected", func(t *testing.T) {
+		rec := httptest.NewRecorder()
+		handler(rec, httptest.NewRequest(http.MethodPost, "/oauth/client.json", nil))
+
+		if rec.Code != http.StatusMethodNotAllowed {
+			t.Fatalf("status = %d, want 405", rec.Code)
+		}
+	})
+}
+
+func TestValidateIssuerResponse(t *testing.T) {
+	const issuer = "http://localhost:8080"
+
+	tests := []struct {
+		name      string
+		iss       string
+		supported bool
+		wantErr   bool
+	}{
+		{name: "supported and matching", iss: issuer, supported: true},
+		{name: "supported but missing", iss: "", supported: true, wantErr: true},
+		{name: "supported but mismatched", iss: "http://evil:9090", supported: true, wantErr: true},
+		{name: "unsupported and absent", iss: "", supported: false},
+		{name: "unsupported but present", iss: issuer, supported: false, wantErr: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateIssuerResponse(tt.iss, issuer, tt.supported)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("validateIssuerResponse(%q, %q, %v) = %v, wantErr %v",
+					tt.iss, issuer, tt.supported, err, tt.wantErr)
+			}
+		})
+	}
+}
