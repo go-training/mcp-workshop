@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -121,13 +122,7 @@ func TestBuildClientMetadata(t *testing.T) {
 		t.Errorf("token_endpoint_auth_method = %q, want %q",
 			doc.TokenEndpointAuthMethod, "none")
 	}
-	hasAuthCode := false
-	for _, g := range doc.GrantTypes {
-		if g == "authorization_code" {
-			hasAuthCode = true
-		}
-	}
-	if !hasAuthCode {
+	if !slices.Contains(doc.GrantTypes, "authorization_code") {
 		t.Errorf("grant_types = %v, must include authorization_code", doc.GrantTypes)
 	}
 	if doc.Scope != "openid profile" {
@@ -150,12 +145,13 @@ func TestBuildClientMetadataRejectsBadInput(t *testing.T) {
 }
 
 func TestMetadataHandler(t *testing.T) {
+	const path = "/oauth/client.json"
 	body := []byte(`{"client_id":"https://localhost:9443/oauth/client.json"}`)
-	handler := metadataHandler(body)
+	handler := metadataHandler(path, body)
 
 	t.Run("GET returns document with headers", func(t *testing.T) {
 		rec := httptest.NewRecorder()
-		handler(rec, httptest.NewRequest(http.MethodGet, "/oauth/client.json", nil))
+		handler(rec, httptest.NewRequest(http.MethodGet, path, nil))
 
 		if rec.Code != http.StatusOK {
 			t.Fatalf("status = %d, want 200", rec.Code)
@@ -166,19 +162,51 @@ func TestMetadataHandler(t *testing.T) {
 		if ct := rec.Header().Get("Content-Type"); !strings.HasPrefix(ct, "application/json") {
 			t.Errorf("Content-Type = %q, want application/json", ct)
 		}
-		if cc := rec.Header().Get("Cache-Control"); cc == "" {
-			t.Error("missing Cache-Control header")
+		// The document tracks this run's flags, so it must not be cached.
+		if cc := rec.Header().Get("Cache-Control"); cc != "no-store" {
+			t.Errorf("Cache-Control = %q, want %q", cc, "no-store")
 		}
 	})
 
 	t.Run("POST is rejected", func(t *testing.T) {
 		rec := httptest.NewRecorder()
-		handler(rec, httptest.NewRequest(http.MethodPost, "/oauth/client.json", nil))
+		handler(rec, httptest.NewRequest(http.MethodPost, path, nil))
 
 		if rec.Code != http.StatusMethodNotAllowed {
 			t.Fatalf("status = %d, want 405", rec.Code)
 		}
 	})
+
+	// The document is the client's identity: it must be served at exactly its
+	// client_id URL, never as a subtree or wildcard match.
+	t.Run("other paths are not served", func(t *testing.T) {
+		for _, p := range []string{"/", "/oauth/", "/oauth/client.json/extra", "/oauth/other.json"} {
+			rec := httptest.NewRecorder()
+			handler(rec, httptest.NewRequest(http.MethodGet, p, nil))
+
+			if rec.Code != http.StatusNotFound {
+				t.Errorf("GET %s: status = %d, want 404", p, rec.Code)
+			}
+			if rec.Body.Len() > 0 && strings.Contains(rec.Body.String(), "client_id") {
+				t.Errorf("GET %s served the metadata document", p)
+			}
+		}
+	})
+}
+
+func TestWriteCallbackHTMLEscapes(t *testing.T) {
+	// The message embeds authorization-response parameters controlled by the AS
+	// (e.g. "error"), so it must never reach the page unescaped.
+	rec := httptest.NewRecorder()
+	writeCallbackHTML(rec, `Authentication failed: <script>alert("xss")</script>`)
+
+	got := rec.Body.String()
+	if strings.Contains(got, "<script>alert") {
+		t.Errorf("callback HTML contains unescaped script tag: %q", got)
+	}
+	if !strings.Contains(got, "&lt;script&gt;") {
+		t.Errorf("callback HTML = %q, want the message HTML-escaped", got)
+	}
 }
 
 func TestValidateIssuerResponse(t *testing.T) {

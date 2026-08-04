@@ -18,7 +18,6 @@ import (
 type clientMetadata struct {
 	ClientID                string   `json:"client_id"`
 	ClientName              string   `json:"client_name"`
-	ClientURI               string   `json:"client_uri,omitempty"`
 	RedirectURIs            []string `json:"redirect_uris"`
 	TokenEndpointAuthMethod string   `json:"token_endpoint_auth_method"`
 	GrantTypes              []string `json:"grant_types"`
@@ -89,15 +88,28 @@ func buildClientMetadata(cimdURL, name, redirectURI string, scopes []string) ([]
 
 // metadataHandler serves the fixed document bytes the way the CIMD spec
 // requires from an origin: a direct 200 on GET, no auth, no redirects.
-func metadataHandler(body []byte) http.HandlerFunc {
+//
+// The path is matched here rather than by a ServeMux pattern: the document is
+// the client's identity and must be served at exactly its client_id URL, while
+// a ServeMux pattern built from a user-supplied path would treat a trailing
+// "/" as a subtree and "{...}" as a wildcard (or panic outright on "{" and
+// whitespace), publishing the registration at URLs that are not the client_id.
+func metadataHandler(path string, body []byte) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != path {
+			http.NotFound(w, r)
+			return
+		}
 		if r.Method != http.MethodGet && r.Method != http.MethodHead {
 			w.Header().Set("Allow", "GET, HEAD")
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
-		w.Header().Set("Cache-Control", "public, max-age=300")
+		// The document's contents follow this run's flags (redirect_uris carries
+		// the callback port, scope carries -scopes), so a cached copy would hand
+		// the AS a stale registration on the next run: no-store, not max-age.
+		w.Header().Set("Cache-Control", "no-store")
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write(body)

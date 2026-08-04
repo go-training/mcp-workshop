@@ -20,7 +20,9 @@
 package main
 
 import (
+	"bytes"
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -116,6 +118,14 @@ func parseFlags() *config {
 	if resource == "" {
 		resource = mcpURL
 	}
+	// The redirect URI is baked into the published document and compared by
+	// exact match, so an ephemeral port (0) would advertise
+	// http://127.0.0.1:0/callback while the listener binds somewhere else.
+	if callbackPort < 1 || callbackPort > 65535 {
+		slog.Error("callback-port must be a fixed port in 1..65535 — it is baked "+
+			"into the metadata document as the redirect URI", "callback_port", callbackPort)
+		os.Exit(2)
+	}
 
 	return &config{
 		authServer:   strings.TrimRight(authServer, "/"),
@@ -152,7 +162,7 @@ func run() error {
 	}
 	defer stopOrigin()
 
-	if err := preflightMetadata(ctx, cfg.cimdURL); err != nil {
+	if err := preflightMetadata(ctx, cfg.cimdURL, doc); err != nil {
 		return fmt.Errorf("metadata self-check failed — Signet would hit the same "+
 			"error when it fetches the client_id URL: %w", err)
 	}
@@ -215,36 +225,41 @@ func startMetadataOrigin(cfg *config, doc []byte) (func(), error) {
 	if err != nil {
 		return nil, fmt.Errorf("parse CIMD URL: %w", err)
 	}
-	if _, err := os.Stat(cfg.certFile); err != nil {
-		return nil, fmt.Errorf("TLS certificate %q not found — generate one with "+
-			"`mkcert localhost` (and run `mkcert -install` once): %w", cfg.certFile, err)
+	// Load the key pair up front instead of letting ListenAndServeTLS discover a
+	// missing or mismatched file asynchronously: this validates the certificate,
+	// the key, and that the two belong together, all before anything is served.
+	cert, err := tls.LoadX509KeyPair(cfg.certFile, cfg.keyFile)
+	if err != nil {
+		return nil, fmt.Errorf("load TLS key pair (cert %q, key %q) — generate one with "+
+			"`mkcert localhost` (and run `mkcert -install` once): %w",
+			cfg.certFile, cfg.keyFile, err)
 	}
 
-	mux := http.NewServeMux()
-	mux.HandleFunc(u.Path, metadataHandler(doc))
-
 	srv := &http.Server{
-		Addr:              cfg.cimdAddr,
-		Handler:           mux,
+		Handler:           metadataHandler(u.Path, doc),
 		ReadHeaderTimeout: 5 * time.Second,
 		WriteTimeout:      10 * time.Second,
 		IdleTimeout:       60 * time.Second,
+		TLSConfig: &tls.Config{
+			Certificates: []tls.Certificate{cert},
+			MinVersion:   tls.VersionTLS12,
+		},
 	}
 
-	errCh := make(chan error, 1)
+	// Bind synchronously so "address already in use" is reported here, with the
+	// address in the message, rather than surfacing moments later as a confusing
+	// preflight "connection refused".
+	listener, err := net.Listen("tcp", cfg.cimdAddr)
+	if err != nil {
+		return nil, fmt.Errorf("listen on %s for the metadata origin: %w", cfg.cimdAddr, err)
+	}
 	go func() {
-		if serveErr := srv.ListenAndServeTLS(cfg.certFile, cfg.keyFile); serveErr != nil &&
+		if serveErr := srv.ServeTLS(listener, "", ""); serveErr != nil &&
 			!errors.Is(serveErr, http.ErrServerClosed) {
-			errCh <- serveErr
+			slog.Error("metadata origin stopped serving",
+				"addr", cfg.cimdAddr, "err", serveErr)
 		}
 	}()
-	// Give a bad listen (port in use, unreadable key) a moment to surface so
-	// the failure is reported here instead of as a confusing preflight error.
-	select {
-	case serveErr := <-errCh:
-		return nil, fmt.Errorf("metadata origin on %s: %w", cfg.cimdAddr, serveErr)
-	case <-time.After(200 * time.Millisecond):
-	}
 
 	slog.Info("metadata origin listening", "addr", cfg.cimdAddr, "path", u.Path)
 	return func() {
@@ -257,10 +272,13 @@ func startMetadataOrigin(cfg *config, doc []byte) (func(), error) {
 }
 
 // preflightMetadata performs the CIMD doc's own verification step against the
-// published URL: a direct 200, no redirects, and a byte-identical client_id.
-// It uses the system trust store like Signet does, so an untrusted certificate
-// fails here first with an actionable message.
-func preflightMetadata(ctx context.Context, cimdURL string) error {
+// published URL: a direct 200, no redirects, and the exact document this run
+// built. Comparing the full body rather than just client_id also pins
+// redirect_uris and scope, so a cache or another process answering this URL is
+// caught here instead of after the browser round-trip. It uses the system trust
+// store like Signet does, so an untrusted certificate fails here first with an
+// actionable message.
+func preflightMetadata(ctx context.Context, cimdURL string, want []byte) error {
 	client := &http.Client{
 		Timeout: 10 * time.Second,
 		CheckRedirect: func(*http.Request, []*http.Request) error {
@@ -284,17 +302,17 @@ func preflightMetadata(ctx context.Context, cimdURL string) error {
 			cimdURL, resp.StatusCode)
 	}
 
-	body, err := io.ReadAll(io.LimitReader(resp.Body, 64<<10))
+	// Signet caps the document at 64 KiB; read one byte past that so an
+	// oversized document is reported as a size mismatch rather than truncated.
+	body, err := io.ReadAll(io.LimitReader(resp.Body, (64<<10)+1))
 	if err != nil {
 		return fmt.Errorf("read metadata response: %w", err)
 	}
-	var doc clientMetadata
-	if err := json.Unmarshal(body, &doc); err != nil {
-		return fmt.Errorf("metadata response is not valid JSON: %w", err)
-	}
-	if doc.ClientID != cimdURL {
-		return fmt.Errorf("document client_id %q is not byte-identical to its URL %q",
-			doc.ClientID, cimdURL)
+	if !bytes.Equal(body, want) {
+		return fmt.Errorf("the document served at %s is not the one this client just "+
+			"published (got %d bytes, want %d) — another process or a cache is "+
+			"answering this URL, so Signet would resolve a different client",
+			cimdURL, len(body), len(want))
 	}
 	return nil
 }
@@ -535,22 +553,44 @@ func exchangeCode(
 	return &tr, nil
 }
 
-// bearerRoundTripper attaches a fixed Bearer token to every request.
+// bearerRoundTripper attaches a fixed Bearer token to requests for the MCP
+// resource this token was issued for.
+//
+// The origin check is not optional: net/http strips Authorization when a
+// redirect crosses to another host, but that happens before the RoundTripper
+// runs, so a transport that sets the header unconditionally re-adds it on every
+// hop and would hand the access token to whatever host -mcp-url redirects to.
 type bearerRoundTripper struct {
-	base  http.RoundTripper
-	token string
+	base   http.RoundTripper
+	token  string
+	origin string // scheme://host the token may be sent to
 }
 
 func (b *bearerRoundTripper) RoundTrip(r *http.Request) (*http.Response, error) {
+	if origin := r.URL.Scheme + "://" + r.URL.Host; origin != b.origin {
+		slog.Warn("withholding bearer token: request origin differs from the MCP "+
+			"endpoint (redirect to another host?)", "origin", origin, "expected", b.origin)
+		return b.base.RoundTrip(r)
+	}
 	req := r.Clone(r.Context())
 	req.Header.Set("Authorization", "Bearer "+b.token)
 	return b.base.RoundTrip(req)
 }
 
 func callMCP(ctx context.Context, cfg *config, token *tokenResponse) error {
+	mcpURL, err := url.Parse(cfg.mcpURL)
+	if err != nil {
+		return fmt.Errorf("parse MCP URL %q: %w", cfg.mcpURL, err)
+	}
 	httpClient := &http.Client{
-		Transport: &bearerRoundTripper{base: http.DefaultTransport, token: token.AccessToken},
-		Timeout:   30 * time.Second,
+		Transport: &bearerRoundTripper{
+			base:   http.DefaultTransport,
+			token:  token.AccessToken,
+			origin: mcpURL.Scheme + "://" + mcpURL.Host,
+		},
+		// No Client.Timeout: it also bounds reading the response body, which
+		// would tear down the streamable transport's long-lived SSE stream
+		// mid-session. The call is bounded by ctx instead.
 	}
 
 	transport := &mcp.StreamableClientTransport{
@@ -611,14 +651,22 @@ func randomState() (string, error) {
 }
 
 func openBrowser(rawURL string) error {
+	var cmd *exec.Cmd
 	switch runtime.GOOS {
 	case "darwin":
-		return exec.Command("open", rawURL).Start()
+		cmd = exec.Command("open", rawURL)
 	case "linux":
-		return exec.Command("xdg-open", rawURL).Start()
+		cmd = exec.Command("xdg-open", rawURL)
 	default:
 		return fmt.Errorf("unsupported platform: %s", runtime.GOOS)
 	}
+	if err := cmd.Start(); err != nil {
+		return err
+	}
+	// The launcher exits immediately; reap it so it does not sit as a zombie for
+	// the rest of the interactive flow.
+	go func() { _ = cmd.Wait() }()
+	return nil
 }
 
 func writeCallbackHTML(w http.ResponseWriter, msg string) {

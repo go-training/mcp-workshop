@@ -4,6 +4,7 @@ package main
 
 import (
 	"context"
+	"errors"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
@@ -28,6 +29,13 @@ func whoAmIHandler(
 	req *mcp.CallToolRequest,
 	_ WhoAmIInput,
 ) (*mcp.CallToolResult, WhoAmIOutput, error) {
+	// The go-sdk does not recover panics in tool handlers, so an unguarded
+	// dereference would take the process down if this server were ever mounted
+	// without the Bearer middleware (or over stdio, where Extra is nil).
+	if req.Extra == nil || req.Extra.TokenInfo == nil {
+		return nil, WhoAmIOutput{}, errors.New(
+			"no verified token on the request — who_am_i requires Bearer authentication")
+	}
 	info := req.Extra.TokenInfo
 	out := WhoAmIOutput{
 		Subject: info.UserID,

@@ -139,7 +139,9 @@ go run ./client-credentials/client \
   -auth-server https://signet.local:8080 \
   -client_id my-service -client_secret s3cr3t
 
-# CIMD (registration-free client, cimd/) — requires mkcert certs and CIMD_ENABLED=true on Signet
+# CIMD (registration-free client, cimd/) — requires CIMD_ENABLED=true on Signet.
+# -cert/-key are relative to the working directory, so run `mkcert localhost`
+# here first (these commands run from 03-oauth-mcp/); see cimd/README.md.
 go run ./cimd/cimd-server \
   -auth-server http://localhost:8080 \
   -resource    http://localhost:8095/mcp

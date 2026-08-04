@@ -19,11 +19,13 @@ import (
 	"flag"
 	"fmt"
 	"log/slog"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
 	"os/signal"
 	"slices"
+	"strings"
 	"syscall"
 	"time"
 
@@ -111,6 +113,27 @@ func checkAudience(ctx context.Context, expected string, got []string) error {
 		auth.ErrInvalidToken, got, expected)
 }
 
+// defaultResourceURL derives the public resource URL from the listen address.
+// A wildcard or missing host becomes "localhost": the result is both the
+// advertised RFC 9728 resource and the audience every token must carry, so
+// naive concatenation ("http://localhost" + "0.0.0.0:8095") would silently
+// demand an aud no client can ever be issued.
+func defaultResourceURL(addr string) string {
+	host, port, err := net.SplitHostPort(addr)
+	if err != nil {
+		// Not host:port at all (e.g. "8095"); treat the whole value as the port.
+		host, port = "", strings.TrimPrefix(addr, ":")
+	}
+	switch host {
+	case "", "0.0.0.0", "::", "[::]":
+		host = "localhost"
+	}
+	if port == "" {
+		return "http://" + host + "/mcp"
+	}
+	return "http://" + net.JoinHostPort(host, port) + "/mcp"
+}
+
 // buildResourceMetadataURL anchors the RFC 9728 metadata URL to the public
 // resource URL so a deployment does not advertise an unreachable discovery hint.
 func buildResourceMetadataURL(resourceURL, metadataPath string) (string, error) {
@@ -153,7 +176,7 @@ func main() {
 	logger.NewWithLevel(logLevel)
 
 	if resourceURL == "" {
-		resourceURL = "http://localhost" + addr + "/mcp"
+		resourceURL = defaultResourceURL(addr)
 	}
 
 	discoveryCtx, cancelDiscovery := context.WithTimeout(context.Background(), discoveryTO)
@@ -199,10 +222,15 @@ func main() {
 	)
 
 	srv := &http.Server{
-		Addr:         addr,
-		Handler:      mux,
-		ReadTimeout:  10 * time.Second,
-		WriteTimeout: 30 * time.Second,
+		Addr:        addr,
+		Handler:     mux,
+		ReadTimeout: 10 * time.Second,
+		// No WriteTimeout: net/http arms it once per request and never extends
+		// it, so any value would abort the streamable transport's long-lived SSE
+		// response (and cancel its context) exactly that far into a session.
+		// ReadTimeout still bounds slow request bodies; it is cleared before the
+		// handler runs, so it does not affect streaming.
+		WriteTimeout: 0,
 		IdleTimeout:  60 * time.Second,
 	}
 

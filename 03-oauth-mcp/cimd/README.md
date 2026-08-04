@@ -68,7 +68,10 @@ Signet's fetcher (and this client's preflight self-check) uses to verify TLS.
 
 ## Prerequisites
 
-1. A locally trusted certificate for the metadata origin:
+1. A locally trusted certificate for the metadata origin. `-cert` / `-key` are
+   resolved relative to the working directory, so generate the pair in the same
+   directory you run `go run` from — the repo root for the commands below
+   (`.gitignore` covers `*.pem`, but never commit the key):
 
    ```bash
    mkcert -install          # once: create + trust the local CA
@@ -105,13 +108,15 @@ Signet's fetcher (and this client's preflight self-check) uses to verify TLS.
 
 ## Quick start
 
+Both commands run from the repo root, which is where `mkcert` wrote the pems:
+
 ```bash
 # terminal 1 — MCP resource server
 go run ./03-oauth-mcp/cimd/cimd-server \
   -auth-server http://localhost:8080 \
   -resource    http://localhost:8095/mcp
 
-# terminal 2 — CIMD client (run from the directory holding localhost.pem)
+# terminal 2 — CIMD client
 go run ./03-oauth-mcp/cimd/cimd-client \
   -auth-server http://localhost:8080 \
   -mcp-url     http://localhost:8095/mcp \
@@ -191,8 +196,6 @@ contract, and all RFC 9207 `iss` validation branches.
 
 ## References
 
-- Signet docs: `http://localhost:8080/docs/zh-TW/cimd` — CIMD hosting,
-  server-side implementation, and CIDR/SSRF safety
 - [draft-ietf-oauth-client-id-metadata-document](https://datatracker.ietf.org/doc/draft-ietf-oauth-client-id-metadata-document/)
 - [RFC 9728 — OAuth 2.0 Protected Resource Metadata](https://datatracker.ietf.org/doc/html/rfc9728)
 - [RFC 8707 — Resource Indicators for OAuth 2.0](https://datatracker.ietf.org/doc/html/rfc8707)
