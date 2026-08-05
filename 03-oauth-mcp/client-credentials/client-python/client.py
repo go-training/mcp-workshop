@@ -4,7 +4,7 @@ Verifies the client-credentials MCP server by fetching an access token from an
 external authorization server (e.g. Signet) via the client_credentials grant,
 then connecting to the MCP server, listing tools, and calling each one.
 
-Requires mcp >= 1.28.1 (the `ClientCredentialsOAuthProvider` extension, plus the
+Requires mcp >= 2.0.0 (the `ClientCredentialsOAuthProvider` extension, plus the
 transport fixes from GHSA advisories against earlier 1.x releases).
 """
 
@@ -20,7 +20,7 @@ from mcp.client.auth.extensions.client_credentials import (
     ClientCredentialsOAuthProvider,
 )
 from mcp.client.auth.oauth2 import TokenStorage
-from mcp.client.streamable_http import streamablehttp_client
+from mcp.client.streamable_http import streamable_http_client
 from mcp.shared.auth import OAuthClientInformationFull, OAuthToken
 
 
@@ -66,7 +66,7 @@ async def run(args: argparse.Namespace) -> None:
     )
 
     print(f"connecting to {args.mcp_url} ...", file=sys.stderr)
-    async with streamablehttp_client(args.mcp_url, auth=provider) as (
+    async with streamable_http_client(args.mcp_url, auth=provider) as (
         read_stream,
         write_stream,
         _,
