@@ -27,6 +27,11 @@ go.work.sum
 .vscode/mcp.json
 bin/
 
+# Local TLS material (mkcert, used by 03-oauth-mcp/cimd) — never commit keys
+*.pem
+*.key
+*.crt
+
 # Python (uv)
 .venv/
 __pycache__/
