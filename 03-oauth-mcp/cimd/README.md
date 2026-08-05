@@ -12,10 +12,10 @@ request and materializes the client from it.
 > OAuth client. CIDR (`10.0.0.0/8`) only shows up in the SSRF-guard part of
 > the story, on the AS side.
 
-Two binaries:
+Three binaries:
 
-- **`cimd-client/`** — plays two roles at once: an HTTPS *client metadata
-  origin* serving the document, and an MCP OAuth client running RFC 8414
+- **`cimd-client/`** — plays two roles at once: an HTTPS _client metadata
+  origin_ serving the document, and an MCP OAuth client running RFC 8414
   discovery, Authorization Code + S256 PKCE with the CIMD URL as `client_id`,
   RFC 9207 `iss` validation, and finally a Bearer-authenticated `who_am_i`
   call.
@@ -23,6 +23,11 @@ Two binaries:
   resource metadata + local JWKS verification of Signet-issued JWTs).
   Deliberately contains **nothing CIMD-specific**: a resource server never
   sees the metadata document, it only verifies the resulting access token.
+- **`claude-code/`** — a standalone metadata origin for testing with **Claude
+  Code as the OAuth client** instead of `cimd-client`: it hosts
+  `https://localhost:9443/oauth/client.json` with `redirect_uris` pointing at
+  Claude Code's local callback, and Claude Code presents that URL as its
+  `client_id`. See [claude-code/README.md](claude-code/README.md).
 
 ## Flow
 
@@ -55,12 +60,12 @@ sequenceDiagram
 Almost everything in this sample runs over plain HTTP — **except the metadata
 document URL itself**:
 
-| Component | Scheme | Why |
-| --- | --- | --- |
-| Signet issuer (`localhost:8080`) | HTTP OK | dev deployment |
-| MCP resource server (`localhost:8095`) | HTTP OK | dev deployment |
-| OAuth callback (`127.0.0.1:8085`) | HTTP OK | loopback redirect URIs may be HTTP even with `STRICT_REDIRECT_URIS=true` |
-| **CIMD document URL (= `client_id`)** | **HTTPS required** | Signet's `IsCIMDClientID` predicate only recognizes `https` URLs as CIMD client_ids — there is no development-mode exception. A `http://…/client.json` client_id is treated as an unknown regular client and fails with `unauthorized_client`. |
+| Component                              | Scheme             | Why                                                                                                                                                                                                                                            |
+| -------------------------------------- | ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Signet issuer (`localhost:8080`)       | HTTP OK            | dev deployment                                                                                                                                                                                                                                 |
+| MCP resource server (`localhost:8095`) | HTTP OK            | dev deployment                                                                                                                                                                                                                                 |
+| OAuth callback (`127.0.0.1:8085`)      | HTTP OK            | loopback redirect URIs may be HTTP even with `STRICT_REDIRECT_URIS=true`                                                                                                                                                                       |
+| **CIMD document URL (= `client_id`)**  | **HTTPS required** | Signet's `IsCIMDClientID` predicate only recognizes `https` URLs as CIMD client_ids — there is no development-mode exception. A `http://…/client.json` client_id is treated as an unknown regular client and fails with `unauthorized_client`. |
 
 [mkcert](https://github.com/FiloSottile/mkcert) makes this painless: it
 installs a local CA into the system trust store, which is exactly what
@@ -126,7 +131,7 @@ go run ./03-oauth-mcp/cimd/cimd-client \
 
 No `-client_id` flag, no registration step, no client secret: the client
 publishes this document at `https://localhost:9443/oauth/client.json` and that
-URL *is* the client identity:
+URL _is_ the client identity:
 
 ```json
 {
@@ -161,7 +166,7 @@ Rules the document must follow (enforced by Signet, mirrored by this client's
 - client: `client metadata document published` → the origin passed its own
   preflight (200, byte-identical `client_id`).
 - client: `opening browser for authorization — Signet will now fetch the
-  metadata document to resolve the client`.
+metadata document to resolve the client`.
 - Signet consent page: identifies the client by the **document's domain**
   (`localhost`), not the self-asserted `client_name` — a name proves nothing.
 - client: `iss OK` → RFC 9207 issuer check passed before the code was sent to
@@ -174,15 +179,15 @@ Rules the document must follow (enforced by Signet, mirrored by this client's
 
 ## Troubleshooting
 
-| Symptom | Likely cause | Check |
-| --- | --- | --- |
-| client aborts: `does not advertise client_id_metadata_document_supported` | CIMD disabled on Signet | `CIMD_ENABLED=true`, restart Signet |
-| `metadata self-check failed` with TLS error | certificate not trusted | `mkcert -install`, cert covers the `-cimd-url` hostname |
-| `unauthorized_client` at authorize | `client_id` not recognized as CIMD URL | scheme must be `https`, path more specific than `/` |
-| `invalid_client` during authorization | Signet's fetch failed | Signet `component=cimd` logs; `CIMD_ALLOW_PRIVATE_NETWORKS=true` for loopback origins; direct 200; byte-identical `client_id` |
-| `invalid_target` | resource not allowlisted | `CIMD_ALLOWED_RESOURCES` contains `-resource` byte-for-byte |
-| `invalid_scope` / missing scopes | custom scopes dropped | only `openid profile email offline_access` survive for CIMD clients |
-| token valid but cimd-server returns 401 | audience/issuer mismatch | `-resource` equals cimd-server's `-resource`; same Signet issuer on both sides |
+| Symptom                                                                   | Likely cause                           | Check                                                                                                                         |
+| ------------------------------------------------------------------------- | -------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| client aborts: `does not advertise client_id_metadata_document_supported` | CIMD disabled on Signet                | `CIMD_ENABLED=true`, restart Signet                                                                                           |
+| `metadata self-check failed` with TLS error                               | certificate not trusted                | `mkcert -install`, cert covers the `-cimd-url` hostname                                                                       |
+| `unauthorized_client` at authorize                                        | `client_id` not recognized as CIMD URL | scheme must be `https`, path more specific than `/`                                                                           |
+| `invalid_client` during authorization                                     | Signet's fetch failed                  | Signet `component=cimd` logs; `CIMD_ALLOW_PRIVATE_NETWORKS=true` for loopback origins; direct 200; byte-identical `client_id` |
+| `invalid_target`                                                          | resource not allowlisted               | `CIMD_ALLOWED_RESOURCES` contains `-resource` byte-for-byte                                                                   |
+| `invalid_scope` / missing scopes                                          | custom scopes dropped                  | only `openid profile email offline_access` survive for CIMD clients                                                           |
+| token valid but cimd-server returns 401                                   | audience/issuer mismatch               | `-resource` equals cimd-server's `-resource`; same Signet issuer on both sides                                                |
 
 ## Tests
 
@@ -193,6 +198,8 @@ go test ./03-oauth-mcp/cimd/...
 `cimd-client/cimd_test.go` covers the CIMD URL shape rules, byte-exact
 `client_id` binding in the generated document, the origin handler's response
 contract, and all RFC 9207 `iss` validation branches.
+`claude-code/cimd_test.go` covers the standalone origin's multi-redirect-URI
+document contract and flag parsing.
 
 ## References
 
