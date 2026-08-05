@@ -6,7 +6,7 @@ require (
 	github.com/appleboy/graceful v1.3.0
 	github.com/gin-contrib/slog v1.2.1
 	github.com/gin-gonic/gin v1.12.0
-	github.com/go-signet/sdk-go v1.0.2
+	github.com/go-signet/sdk-go v1.1.0
 	github.com/google/uuid v1.6.0
 	github.com/mark3labs/mcp-go v0.57.0
 	github.com/modelcontextprotocol/go-sdk v1.7.0
