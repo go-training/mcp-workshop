@@ -95,6 +95,9 @@ a public, PKCE-only client from it.
   - `cimd-server/` is an ordinary JWKS-verifying resource server —
     deliberately CIMD-agnostic, since a resource server only ever sees the
     resulting access token
+  - `claude-code/` is a standalone metadata origin for using **Claude Code**
+    as the OAuth client: Claude Code presents the hosted document's URL as
+    its `client_id` (see [cimd/claude-code/README.md](cimd/claude-code/README.md))
 
 ## Quick Start
 
@@ -150,4 +153,10 @@ go run ./cimd/cimd-client \
   -mcp-url     http://localhost:8095/mcp \
   -cimd-url    https://localhost:9443/oauth/client.json \
   -cert localhost.pem -key localhost-key.pem
+
+# CIMD with Claude Code as the OAuth client — replace cimd-client with the
+# standalone metadata origin, then register the server in Claude Code with
+# --client-id https://localhost:9443/oauth/client.json --callback-port 8085;
+# see cimd/claude-code/README.md.
+go run ./cimd/claude-code -cert localhost.pem -key localhost-key.pem
 ```
