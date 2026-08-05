@@ -128,17 +128,26 @@ func run() error {
 	)
 	slog.Info("use this client_id in Claude Code's MCP OAuth config", "client_id", cimdURL)
 
+	// Propagate serve failures back to run() instead of exiting from the
+	// goroutine: os.Exit here would bypass deferred cleanup and skip the
+	// graceful-shutdown path below. Buffered so the goroutine never blocks if
+	// the error arrives while run() is not yet selecting.
+	serveErrCh := make(chan error, 1)
 	go func() {
 		if serveErr := srv.ServeTLS(listener, "", ""); serveErr != nil &&
 			!errors.Is(serveErr, http.ErrServerClosed) {
-			slog.Error("metadata origin stopped serving", "addr", addr, "err", serveErr)
-			os.Exit(1)
+			serveErrCh <- serveErr
 		}
 	}()
 
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
-	<-quit
+
+	select {
+	case serveErr := <-serveErrCh:
+		return fmt.Errorf("metadata origin stopped serving on %s: %w", addr, serveErr)
+	case <-quit:
+	}
 
 	slog.Info("shutdown signal received, shutting down metadata origin...")
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
