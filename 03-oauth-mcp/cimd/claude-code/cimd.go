@@ -20,6 +20,7 @@ import (
 type clientMetadata struct {
 	ClientID                string   `json:"client_id"`
 	ClientName              string   `json:"client_name"`
+	ClientURI               string   `json:"client_uri"`
 	RedirectURIs            []string `json:"redirect_uris"`
 	TokenEndpointAuthMethod string   `json:"token_endpoint_auth_method"`
 	GrantTypes              []string `json:"grant_types"`
@@ -85,6 +86,7 @@ func buildClientMetadata(cimdURL, name string, redirectURIs, scopes []string) ([
 	doc := clientMetadata{
 		ClientID:     cimdURL,
 		ClientName:   name,
+		ClientURI:    "https://claude.ai",
 		RedirectURIs: redirectURIs,
 		// CIMD clients are always public: there is no registration step at
 		// which a secret could be exchanged, so "none" is the only valid value.

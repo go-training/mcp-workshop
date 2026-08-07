@@ -36,6 +36,9 @@ func TestBuildClientMetadataMultipleRedirects(t *testing.T) {
 	if doc.ClientID != cimdURL {
 		t.Errorf("client_id = %q, want %q", doc.ClientID, cimdURL)
 	}
+	if doc.ClientURI != "https://claude.ai" {
+		t.Errorf("client_uri = %q, want %q", doc.ClientURI, "https://claude.ai")
+	}
 	// Redirect URIs are compared by exact match on the AS, so the document must
 	// carry every callback variant the external client may use, in order.
 	if !reflect.DeepEqual(doc.RedirectURIs, redirects) {
