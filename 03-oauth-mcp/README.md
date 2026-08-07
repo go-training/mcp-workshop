@@ -6,6 +6,13 @@ This module demonstrates OAuth 2.0 integration with MCP (Model Context Protocol)
 
 ### Authorization Code + PKCE (interactive user flow)
 
+> **Deprecated for new MCP clients:** MCP 2026-07-28 formally deprecates
+> Dynamic Client Registration (DCR) in favor of
+> [Client ID Metadata Documents (CIMD)](cimd/README.md). This example remains
+> runnable for backward-compatibility and for learning existing DCR-based
+> deployments, but new clients should use the CIMD example instead. See the
+> [MCP 2026-07-28 announcement](https://blog.modelcontextprotocol.io/posts/2026-07-28/).
+
 The `dcr/` directory contains an MCP **resource server** for the
 [OAuth 2.1 Authorization Code + PKCE](https://datatracker.ietf.org/doc/html/draft-ietf-oauth-v2-1)
 flow, built with the official

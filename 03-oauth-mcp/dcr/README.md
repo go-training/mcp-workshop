@@ -1,5 +1,12 @@
 # OAuth 2.1 Authorization Code + PKCE MCP Resource Server
 
+> **Deprecated for new MCP clients:** Dynamic Client Registration (DCR) was
+> formally deprecated by MCP 2026-07-28 in favor of
+> [Client ID Metadata Documents (CIMD)](../cimd/README.md). DCR remains
+> available for backward compatibility, so this example stays runnable for
+> learning and maintaining existing deployments; use CIMD for new clients. See
+> the [MCP 2026-07-28 announcement](https://blog.modelcontextprotocol.io/posts/2026-07-28/).
+
 This example demonstrates the **Authorization Code + PKCE** flow split: an
 [Signet](https://github.com/go-signet/signet) instance issues OAuth
 tokens, and this MCP server validates them. The MCP server itself issues no
