@@ -110,7 +110,7 @@ Then register the MCP server with Claude Code, pointing its `client_id` at
 the published document:
 
 ```bash
-claude mcp add --transport http \
+claude mcp add --scope project --transport http \
   --client-id https://localhost:9443/oauth/client.json \
   --callback-port 8085 \
   cimd-server http://localhost:8095/mcp
