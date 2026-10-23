@@ -133,11 +133,13 @@ func validateIssuerResponse(iss, expectedIssuer string, issParameterSupported bo
 		if iss == "" {
 			return fmt.Errorf(
 				"issuer identification required but authorization response carried no iss "+
-					"(expected %q)", expectedIssuer)
+					"(expected %q)", expectedIssuer,
+			)
 		}
 		if iss != expectedIssuer {
 			return fmt.Errorf(
-				"issuer mismatch: got %q want %q — aborting", iss, expectedIssuer)
+				"issuer mismatch: got %q want %q — aborting", iss, expectedIssuer,
+			)
 		}
 		return nil
 	}
@@ -146,7 +148,8 @@ func validateIssuerResponse(iss, expectedIssuer string, issParameterSupported bo
 	if iss != "" {
 		return fmt.Errorf(
 			"authorization response carried iss %q but the AS does not advertise "+
-				"issuer identification support — aborting", iss)
+				"issuer identification support — aborting", iss,
+		)
 	}
 	return nil
 }

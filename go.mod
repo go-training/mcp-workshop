@@ -1,6 +1,6 @@
 module github.com/go-training/mcp-workshop
 
-go 1.25.12
+go 1.26.10
 
 require (
 	github.com/appleboy/graceful v1.3.0
