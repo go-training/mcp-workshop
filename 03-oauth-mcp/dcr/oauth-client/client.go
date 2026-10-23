@@ -211,7 +211,8 @@ func discoverAuthServer(ctx context.Context, cfg *config) string {
 	}
 
 	prm, err := oauthex.GetProtectedResourceMetadata(
-		ctx, metaURL, cfg.resource, http.DefaultClient)
+		ctx, metaURL, cfg.resource, http.DefaultClient,
+	)
 	if err != nil {
 		slog.Warn("RFC 9728 discovery failed — falling back to -auth-server",
 			"resource_metadata_url", metaURL,
