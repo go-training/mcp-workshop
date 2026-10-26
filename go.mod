@@ -10,7 +10,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/mark3labs/mcp-go v0.58.0
 	github.com/modelcontextprotocol/go-sdk v1.7.0
-	github.com/redis/rueidis v1.0.77
+	github.com/redis/rueidis v1.0.79
 	github.com/testcontainers/testcontainers-go v0.44.0
 	go.opentelemetry.io/otel v1.47.0
 	go.opentelemetry.io/otel/trace v1.47.0
