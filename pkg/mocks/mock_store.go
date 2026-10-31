@@ -113,6 +113,21 @@ func (mr *MockStoreMockRecorder) GetClient(ctx, clientID any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetClient", reflect.TypeOf((*MockStore)(nil).GetClient), ctx, clientID)
 }
 
+// GetClients mocks base method.
+func (m *MockStore) GetClients(ctx context.Context) ([]*core.Client, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetClients", ctx)
+	ret0, _ := ret[0].([]*core.Client)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetClients indicates an expected call of GetClients.
+func (mr *MockStoreMockRecorder) GetClients(ctx any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetClients", reflect.TypeOf((*MockStore)(nil).GetClients), ctx)
+}
+
 // SaveAuthorizationCode mocks base method.
 func (m *MockStore) SaveAuthorizationCode(ctx context.Context, code *core.AuthorizationCode) error {
 	m.ctrl.T.Helper()
