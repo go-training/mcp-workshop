@@ -10,6 +10,7 @@ import (
 	"net/http"
 
 	"github.com/go-training/mcp-workshop/pkg/core"
+
 	"github.com/mark3labs/mcp-go/mcp"
 )
 

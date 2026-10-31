@@ -1,3 +1,6 @@
+GO ?= go
+TOOLS_MOD := -modfile=go.tools.mod
+
 
 # Recursively build Go main binaries in all subdirectories (fixes relative path bug)
 # Usage:
@@ -80,7 +83,7 @@ test-colors:
 $(BINS):
 	@IDX=$$(expr $$(echo "$(BINS)" | tr ' ' '\n' | grep -n "^$@$$" | cut -d: -f1)) ; \
 	printf "$(GREEN)[Build $${IDX}/$(BIN_COUNT)]$(RESET) Building $@ from $(filter %/$@,$(GODIRS))\n" ; \
-	if go build -v -o bin/$@ $(filter %/$@,$(GODIRS)); then \
+	if $(GO) build -v -o bin/$@ $(filter %/$@,$(GODIRS)); then \
 		printf "$(GREEN)✔ Success: $@$(RESET)\n" ; \
 	else \
 		printf "$(RED)✖ Failed: $@$(RESET)\n" ; \
@@ -89,47 +92,65 @@ $(BINS):
 
 clean:
 	@printf "$(YELLOW)Cleaning binaries:$(RESET) $(BINS)\n"
-	@rm -f $(addprefix bin/,$(BINS))
+	@rm -f $(addprefix bin/,$(BINS)) coverage.txt
 
 # Run all tests
 test:
 	@printf "$(GREEN)Running tests...$(RESET)\n"
-	@go test ./... -short
+	@$(GO) test -race -count=1 -coverprofile=coverage.txt ./...
 
 # Run all tests with verbose output
 test-verbose:
 	@printf "$(GREEN)Running tests (verbose)...$(RESET)\n"
-	@go test ./... -v
+	@$(GO) test ./... -v
 
 # Run all tests with coverage
 test-cover:
 	@printf "$(GREEN)Running tests with coverage...$(RESET)\n"
-	@go test ./... -cover -short
+	@$(GO) test ./... -cover -short
 	@printf "\n$(GREEN)Generating coverage report...$(RESET)\n"
-	@go test ./... -coverprofile=coverage.out -short
-	@go tool cover -func=coverage.out | tail -1
+	@$(GO) test ./... -coverprofile=coverage.out -short
+	@$(GO) tool cover -func=coverage.out | tail -1
 	@printf "$(YELLOW)View HTML coverage report: $(RESET)go tool cover -html=coverage.out\n"
 
 # Run store package tests
 test-store:
 	@printf "$(GREEN)Running store package tests...$(RESET)\n"
-	@go test ./pkg/store/... -v
+	@$(GO) test ./pkg/store/... -v
 
-# Run golangci-lint
+# Run the pinned golangci-lint tool
 lint:
-	@printf "$(GREEN)Running golangci-lint...$(RESET)\n"
-	@which golangci-lint > /dev/null || (printf "$(RED)golangci-lint not found. Install from https://golangci-lint.run/welcome/install/$(RESET)\n" && exit 1)
-	@golangci-lint run ./...
+	$(GO) tool $(TOOLS_MOD) golangci-lint run ./...
 
-# Run golangci-lint fmt
+# Format using the pinned golangci-lint tool
 fmt:
-	@printf "$(GREEN)Running golangci-lint fmt...$(RESET)\n"
-	@which golangci-lint > /dev/null || (printf "$(RED)golangci-lint not found. Install from https://golangci-lint.run/welcome/install/$(RESET)\n" && exit 1)
-	@golangci-lint fmt ./...
+	$(GO) tool $(TOOLS_MOD) golangci-lint fmt ./...
 
 # Generate mock files
 mock:
 	@printf "$(GREEN)Generating mock files...$(RESET)\n"
-	@which mockgen > /dev/null || (printf "$(RED)mockgen not found. Installing...$(RESET)\n" && go install go.uber.org/mock/mockgen@latest)
-	@go generate ./pkg/mocks/...
+	$(GO) generate ./pkg/mocks/...
 	@printf "$(GREEN)✔ Mock generation complete$(RESET)\n"
+
+.PHONY: build coverage vet install-tools mod-download mod-tidy mod-verify
+
+build: all
+
+coverage: test
+	$(GO) tool cover -html=coverage.txt
+
+vet:
+	$(GO) vet ./...
+
+install-tools:
+	$(GO) mod download $(TOOLS_MOD)
+
+mod-download:
+	$(GO) mod download
+
+mod-tidy:
+	$(GO) mod tidy
+
+mod-verify:
+	$(GO) mod verify
+	$(GO) mod verify $(TOOLS_MOD)
