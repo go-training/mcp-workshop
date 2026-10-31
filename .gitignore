@@ -37,3 +37,6 @@ bin/
 __pycache__/
 *.pyc
 .python-version
+
+# Generated test coverage
+/coverage.txt

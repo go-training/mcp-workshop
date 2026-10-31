@@ -1,6 +1,6 @@
 # mcp-workshop
 
-[![build-and-test](https://github.com/go-training/mcp-workshop/actions/workflows/ci.yml/badge.svg)](https://github.com/go-training/mcp-workshop/actions/workflows/ci.yml)
+[![Lint and Testing](https://github.com/go-training/mcp-workshop/actions/workflows/testing.yml/badge.svg)](https://github.com/go-training/mcp-workshop/actions/workflows/testing.yml)
 [![Trivy Security Scan](https://github.com/go-training/mcp-workshop/actions/workflows/trivy.yml/badge.svg)](https://github.com/go-training/mcp-workshop/actions/workflows/trivy.yml)
 
 English | [繁體中文](README.zh-TW.md) | [簡體中文](README.zh-CN.md)

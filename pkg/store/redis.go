@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/go-training/mcp-workshop/pkg/core"
+
 	"github.com/redis/rueidis"
 )
 
