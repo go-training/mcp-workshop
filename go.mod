@@ -4,7 +4,7 @@ go 1.26.10
 
 require (
 	github.com/appleboy/graceful v1.3.0
-	github.com/gin-contrib/slog v1.2.3
+	github.com/gin-contrib/slog v1.2.4
 	github.com/gin-gonic/gin v1.12.0
 	github.com/go-signet/sdk-go v1.2.0
 	github.com/google/uuid v1.6.0
